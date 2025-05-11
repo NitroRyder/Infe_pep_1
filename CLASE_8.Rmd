@@ -86,7 +86,7 @@ homogeneidad_var <- leveneTest ( Tiempo ~ Criterio , datos )
 cat (" Pruebas de normalidad Shapiro - Wilk \n" )
 cat("-----------------------------------------------------------------------\n")
 print ( normalidad )
-cat (" \ nPrueba de homocedasticidad de Levene \n " )
+cat (" \nPrueba de homocedasticidad de Levene \n " )
 cat("-----------------------------------------------------------------------\n")
 ```
 
@@ -103,11 +103,11 @@ print ( prueba )
 # si se encuentran diferencias significativas .
 if( prueba [[ "p.value" ]] < alfa ) {
   post_hoc <- pairwise.wilcox.test ( datos [["Tiempo"]] , datos [[ "Criterio"]] ,
-                                     p.adjust.method = " BH ", paired = FALSE , exact = FALSE )
+                                     p.adjust.method = "BH", paired = FALSE , exact = FALSE )
 
   cat ("Resultados del an álisis post - hoc \n " )
   cat (" --------------------------------" )
-  print ( post _ hoc )
+  print ( post_hoc )
 }
 ```
 

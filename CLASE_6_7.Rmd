@@ -285,7 +285,7 @@ print ( summary ( medias , level = 1 - alfa , adjust = "none") )
 print ( plot ( medias , level = 1 - alfa , adjust = "none", colors = "steelblue") +
           ggtitle ( sprintf (" Tamaño del efecto ( %d % % IC ) ", round ((1 - alfa ) * 100) )) +
           xlab (" EMM del tiempos de ejecución\n requerido para las mismas instancias ") +
-          theme _ pubr () )
+          theme_pubr () )
 ```
 
 ```{r}
