@@ -1,0 +1,414 @@
+---
+title: "RESPUESTA_C2"
+author: "EJEMPLO"
+date: "2025-05-11"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(ggpubr)
+library(DescTools)
+library(ez)
+library(emmeans)
+library(nlme)
+```
+
+# CAPÍTULO 5. INFERENCIA CON MEDIAS MUESTRALES
+
+## PRUEBA Z
+
+a)  observaciones independientes y aleatorias
+
+b)  muestra \>= 30 o conozco la varianza de la población
+
+c)  cumple normalidad
+
+-   p_shapiro \> 0.05
+-   Q-Q cercano de la diagonal
+
+```{r}
+library ( TeachingDemos )
+library ( ggpubr )
+
+# Ingresar los datos
+muestra <- c (19.33 , 29.37 , 29.14 , 32.10 , 25.04 , 22.22 , 31.26 , 26.92 ,
+              31.40 , 17.66 , 22.55 , 20.69 , 24.68 , 28.74 , 26.85 , 29.68 ,
+              29.27 , 26.72 , 27.08 , 20.62)
+
+# Establecer los datos conocidos
+desv_est <- 2.32
+n <- length ( muestra )
+valor_nulo <- 20
+
+# Fijar un nivel de significaci ó n
+alfa <- 0.01
+
+# Crear gráfico Q - Q para verificar la distribución de la muestra
+g <- ggqqplot ( data = data.frame ( muestra ) , x = "muestra" ,
+                color = "steelblue" , xlab = "Teórico" , ylab = "Muestra" , 
+                title = "Gráfico Q - Q muestra v/s distribución normal")
+print (g)
+cat("\n--------------------------------------------------------------\n")
+# Verificar distribuci ó n muestral usando la prueba de n ormalidad
+# de Shapiro - Wilk .
+normalidad <- shapiro.test(muestra)
+
+print (normalidad)
+```
+
+COMO CUMPLE QUE p-value = 0.2443 Y QUE Q-Q CERCANO A LA DIAGONAL, PROCEDEMOS A REALIZAR PRUEBA-Z.
+
+```{r}
+cat("\n--------------------------------------------------------------\n")
+# Calcular y mostrar la media de la muestra
+media <- mean ( muestra )
+cat (" \t Prueba Z para una muestra \n\n")
+cat ("Media = " , media , "[ M$]\ n")
+
+# Calcular y mostrar el estad í stico de prueba
+Z <- ( media - valor_nulo ) / ( desv_est / sqrt ( n ) )
+cat ("Z = ", Z , "\ n")
+
+# Calcular y mostrar el valor p
+p <- 2 * pnorm (Z , lower.tail = FALSE )
+cat ("p = ", p , "\ n")
+
+# Hacer la prueba Z usando el paquete TeachingDemos
+cat("\n--------------------------------------------------------------\n")
+# Una alternativa es usando la media muestral y el tama ño de la muestra
+prueba1 <- z.test ( media , mu = valor_nulo , n = 20 , alternative = "two.sided" ,
+stdev = desv_est , conf.level = 1 - alfa )
+print( prueba1 )
+cat("--------------------------------------------------------------\n")
+# Otra opci ó n es usando la muestra directamente
+prueba2 <- z.test ( muestra , mu = valor_nulo , alternative = "two.sided" ,
+stdev = desv_est , conf.level = 1 - alfa )
+print ( prueba2 )
+```
+
+COMO p-valor \< alfa, RECHAZAMOS LA HIPÓTESIS NULA A FAVOR DE LA HIPOTESIS ALTERNATIVA.
+
+## PRUEBA T-STUDENT
+
+### 1) Prueba t para una muestra
+
+a)  Las observaciones son independientes entre sí.
+
+b)  Las observaciones provienen de una distribución cercana a la normal.
+
+c)  **(n \< 30)** o (n \>= 30)
+
+```{r}
+library ( ggpubr )
+
+# Cargar los datos
+tiempo <- c (411.5538 , 393.2753 , 445.8905 , 411.4022 , 498.8969 ,388.6731 , 430.0382 , 469.4734 , 409.5844 , 442.0800 ,418.1169 , 408.4110 , 463.3733 ,407.0908 , 516.5222)
+
+# Establecer los datos conocidos
+n <- length ( tiempo )
+grados_libertad <- n - 1
+valor_nulo <- 500
+# Verificar si la distribuci ó n se acerca a la norma l
+g <- ggqqplot ( data = data.frame(tiempo) , x = "tiempo",
+                color = "steelblue" ,
+                xlab = "Teórico" , ylab = "Muestra" ,
+                title = "Gráfico Q-Q muestra v/s distribución normal")
+print ( g )
+
+# Fijar un nivel de significaci ó n
+alfa <- 0.025
+```
+
+```{r}
+# Fijar un nivel de significaci ó n
+alfa <- 0.025
+cat("--------------------------------------------------------------\n")
+# Calcular y mostrar el estad í stico de prueba
+media <- mean ( tiempo )
+desv_est <- sd( tiempo )
+error_est <- desv_est / sqrt ( n )
+t <- ( media - valor_nulo ) / error_est
+cat ("\ tPrueba t para una muestra \n" )
+cat ("Media = " , media , " [ ms ]\n ")
+cat ("t = ", t, " \n ")
+
+# Calcular el valor p
+p <- pt(t, df = grados_libertad , lower.tail = TRUE )
+cat ("p = ", p , " \n ")
+cat("--------------------------------------------------------------\n")
+# Construir el intervalo de confianza
+t_critico <- qt( alfa , df = grados_libertad , lower.tail = FALSE )
+superior <- media + t_critico * error_est
+cat ("Intervalo de confianza = ( - Inf , " , superior , " ]\n ", sep = " ")
+cat("--------------------------------------------------------------\n")
+# Aplicar la prueba t de Student con la funci ó n de R
+prueba <- t.test ( tiempo , mu = valor_nulo ,
+alternative = "less", conf.level = 1 - alfa )
+print ( prueba )
+```
+
+### 2) Prueba t para dos muestras pareadas
+
+```{r}
+# Cargar los datos
+instancia <- seq (1 , 35 , 1)
+
+t_A <- c (436.5736 , 470.7937 , 445.8354 , 470.9810 , 485.9394 ,
+          464.6145 , 466.2139 , 468.9065 , 473.8778 , 413.0639 ,
+          496.8705 , 450.6578 , 502.9759 , 465.6358 , 437.6397 ,
+          458.8806 , 503.1435 , 430.0524 , 438.5959 , 439.7409 ,
+          464.5916 , 467.9926 , 415.3252 , 495.4094 , 493.7082 ,
+          433.1082 , 445.7433 , 515.2049 , 441.9420 , 472.1396 ,
+          451.2234 , 476.5149 , 440.7918 , 460.1070 , 450.1008)
+
+t_B <- c (408.5142 , 450.1075 , 490.2311 , 513.6910 , 467.6467 ,
+          484.1897 , 465.9334 , 502.6670 , 444.9693 , 456.3341 ,
+          501.1443 , 471.7833 , 441.1206 , 544.1575 , 447.8844 ,
+          432.4108 , 477.1712 , 482.4828 , 458.2536 , 474.9863 ,
+          496.0153 , 485.8112 , 457.4253 , 483.3700 , 510.7131 ,
+          467.5739 , 482.5621 , 453.5986 , 385.9391 , 548.7884 ,
+          467.2533 , 494.7049 , 451.9716 , 522.3699 , 444.1270)
+
+diferencia <- t_A - t_B
+
+# Fijar un nivel de significaci ó n
+alfa <- 0.05
+
+# Verificar si la distribuci ó n se acerca a la norma l
+normalidad <- shapiro.test(diferencia)
+print(normalidad)
+
+# Crear gráfico Q - Q para t_A y t_B
+g <- ggqqplot ( data = data.frame(t_A) , x = "t_A" ,
+                color = "steelblue" , xlab = "Teórico" , ylab = "Muestra" ,
+                title = "Gráfico Q - Q t_A v/s distribución normal")
+
+print(g)
+
+g <- ggqqplot ( data = data.frame(t_B) , x = "t_B" ,
+                color = "steelblue" , xlab = "Teórico" , ylab = "Muestra" ,
+                title = "Gráfico Q - Q t_B v/s distribución normal")
+
+print(g)
+```
+
+```{r}
+# Aplicar la prueba t de Student a la diferencia de medias
+valor_nulo <- 0
+
+prueba_1 <- t.test(diferencia , alternative = "two.sided" ,
+mu = valor_nulo , conf.level = 1 - alfa )
+print (prueba_1)
+
+# Otra alternativa puede ser aplicar la prueba t de Student
+# para dos muestras pareadas .
+prueba_2 <- t.test(x = t_A , y = t_B , paired = TRUE , 
+                   alternative = "two.sided" , mu = valor_nulo , conf.level = 1 - alfa )
+print (prueba_2)
+```
+
+Los resultados para esta prueba son: \
+\* El valor para el estadístico de prueba T es t ≈ −1,9816. \
+\* Se consideran df = 34 grados de libertad para la distribución t. \
+\* El valor p obtenido es p = 0,056. \
+\* El intervalo de confianza obtenido es [−24,480; 0,309]. \
+\* La media de la muestra es x ≈ −12,086.
+
+En este caso, la media de las diferencias está dentro del intervalo de confianza, y además el valor p es mayor que el nivel de significación, por lo que se falla al rechazar la hipótesis nula. Pero el resultado está cerca del borde de significación. En consecuencia, se puede afirmar con 95 % de confianza que pareciera no haber suficiente evidencia para descartar que ambos algoritmos tardan, en promedio, lo mismo en procesar las instancias del problema, aunque sería necesario conseguir una muestra más grande para tener mayor certeza
+
+
+
+### 3)Prueba t para dos muestras independientes
+
+```{r}
+library ( ggpubr )
+# Cargar los datos
+vacuna_A <- c(6.04 , 19.84 , 8.62 , 13.02 , 12.20 , 14.78 , 4.53 , 
+                26.67 ,3.14 , 19.14 , 10.86 , 13.13 , 6.34 , 11.16 , 7.62)
+
+vacuna_B <- c(5.32 , 3.31 , 5.68 , 5.73 , 4.86 , 5.68 , 2.93 , 5.48 , 
+                6.10 ,2.56 , 7.52 , 7.41 , 4.02)
+
+# Fijar un nivel de significaci ó n
+alfa <- 0.01
+
+# Verificar si las muestras se distribuyen de manera cercana
+# a la normal .
+normalidad_A <- shapiro.test(vacuna_A)
+normalidad_B <- shapiro.test(vacuna_B)
+
+print(normalidad_A)
+print(normalidad_B)
+
+# Crear gráfico Q - Q para vacuna_A y vacuna_B  
+g <- ggqqplot ( data = data.frame(vacuna_A) , x = "vacuna_A" ,
+                color = "steelblue" , xlab = "Teórico" , ylab = "Muestra" ,
+                title = "Gráfico Q - Q vacuna_A v/s distribución normal")
+print(g)
+
+g <- ggqqplot ( data = data.frame(vacuna_B) , x = "vacuna_B" ,
+                color = "steelblue" , xlab = "Teórico" , ylab = "Muestra" ,
+                title = "Gráfico Q - Q vacuna_B v/s distribución normal")
+
+print(g)
+
+
+# Aplicar la prueba t para dos muestras independientes ,
+# aplicando la correcci ó n de Welch .
+prueba <- t.test(x = vacuna_A , y = vacuna_B , paired = FALSE ,
+alternative = "greater" , mu = 0, conf.level = 1 - alfa )
+print(prueba)
+
+# Calcular la diferencia entre las medias
+diferencia <- prueba[["estimate"]][1] - prueba [["estimate"]][2]
+cat("Diferencia de las medias = " , diferencia , "[ mg/ml ]\n")
+```
+
+```{r}
+# Aplicar la prueba t para dos muestras independientes ,
+# aplicando la correcci ó n de Welch .
+prueba <- t.test(x = vacuna_A , y = vacuna_B , paired = FALSE ,
+alternative = "greater" , mu = 0, conf.level = 1 - alfa )
+print(prueba)
+
+# Calcular la diferencia entre las medias
+diferencia <- prueba[["estimate"]][1] - prueba [["estimate"]][2]
+cat("Diferencia de las medias = " , diferencia , "[ mg/ml ]\n")
+```
+
+
+
+# INFERENCIA CON PROPORCIONES MUESTRALES
+
+## MÉTODO DE WALD
+
+### Método de Wald para una proporción
+```{r}
+# Fijar valores conocidos
+n <- 150
+p_exito <- 0.64
+valor_nulo <- 0.7
+
+# Fijar el nivel de significaci ó n
+alfa <- 0.05
+
+# Construir el intervalo de confianza
+error_est <- sqrt (( p_exito * (1 - p_exito ) ) / n )
+Z_critico <- qnorm ( alfa / 2 , lower.tail = FALSE )
+inferior <- p_exito - Z_critico * error_est
+superior <- p_exito + Z_critico * error_est
+cat ("Intervalo de confianza = [ " , inferior , " , ", superior , " ]\n ", sep = " ")
+
+# Realizar la prueba de hip ó tesis
+error_est_hip <- sqrt (( valor_nulo * (1 - valor_nulo )) / n )
+Z <- (p_exito - valor_nulo ) / error_est_hip
+p <- pnorm (Z , lower.tail = FALSE )
+cat ("Hipótesis alternativa unilateral \n " )
+cat ("Z = ", Z , " \n ")
+cat ("p = ", p )
+```
+
+### Método de Wald para dos proporciones
+```{r}
+# Fijar valores conocidos
+n_hombres <- 48
+n_mujeres <- 42
+exitos_hombres <- 26
+exitos_mujeres <- 20
+valor_nulo <- 0
+
+# Fijar el nivel de significaci ó n
+alfa <- 0.05
+
+# Calcular probabilidades de é xito
+p_hombres <- exitos_hombres / n_hombres
+p_mujeres <- exitos_mujeres / n_mujeres
+
+# Estimar la diferencia de las proporciones observadas
+diferencia <- p_hombres - p_mujeres
+
+# Construir y mostrar el intervalo de confianza
+error_hombres <- ( p_hombres * (1 - p_hombres ) ) / n_hombres
+error_mujeres <- ( p_mujeres * (1 - p_mujeres ) ) / n_mujeres
+error_est <- sqrt ( error_hombres + error_mujeres )
+Z_critico <- qnorm ( alfa / 2 , lower.tail = FALSE )
+inferior <- diferencia - Z_critico * error_est
+superior <- diferencia + Z_critico * error_est
+cat ("Intervalo de confianza = [ " , inferior , " , ", superior , " ]\n ", sep = " ")
+
+# Realizar y mostrar la prueba de hip ó tesis
+p_agrupada <- ( exitos_hombres + exitos_mujeres ) / ( n_hombres + n_mujeres )
+error_hombres <- ( p_agrupada * (1 - p_agrupada ) ) / n_hombres
+error_mujeres <- ( p_agrupada * (1 - p_agrupada ) ) / n_mujeres
+error_est_hip_nula <- sqrt ( error_hombres + error_mujeres )
+Z <- ( diferencia - valor_nulo ) / error_est_hip_nula
+p <- 2 * pnorm (Z , lower.tail = FALSE )
+cat ("Hipótesis alternativa bilateral \n " )
+cat ("Z = ", Z , " \n ")
+cat ("p = ", p , " \n ")
+```
+## MÉTODO DE WILSON
+
+### Método de Wilson para una proporción
+```{r}
+# Fijar valores conocidos
+n <- 150
+p_exito <- 0.64
+valor_nulo <- 0.7
+
+# Establecer el nivel de significaci ó n
+alfa <- 0.05
+
+# Calcular cantidad de é xitos
+exitos <- p_exito * n
+
+# Realizar y mostrar la prueba de Wilson en R
+prueba <- prop.test( exitos , n = n , p = valor_nulo ,
+                     alternative = "greater" , conf.level = 1 - alfa )
+
+print ( prueba )
+```
+
+
+### Método de Wilson para la diferencia entre dos proporciones
+```{r}
+# Fijar valores conocidos ( hombres , mujeres )
+n <-c(48 , 42)
+exitos <- c(26 , 20)
+
+# Establecer el nivel de significaci ó n
+alfa <- 0.05
+
+# Realizar y mostrar la prueba de Wilson en R
+prueba <- prop.test ( exitos , n = n , alternative = "two.sided" ,
+                          conf.level = 1 - alfa )
+print(prueba)
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
