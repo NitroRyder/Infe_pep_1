@@ -1,0 +1,252 @@
+---
+title: "CLASE_4"
+author: "EJEMPLO"
+date: "2025-05-11"
+output: html_document
+---
+
+# LIBRERIA
+
+```{r setup, include=FALSE}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(ggpubr)
+library(DescTools)
+library(ez)
+library(emmeans)
+library(nlme)
+```
+
+# PODER ESTADÍSTICO
+
+## 1) POTENCIA DE LA PRUEBA Z
+```{r}
+# CASO BLIATERAL
+library ( ggplot2 )
+#library ( ggpattern )
+library ( ggpubr )
+
+# Definir los valores fijados en el enunciado
+n <- 36
+alfa <- 0.05
+media_nula <- 60
+
+sigma <- 12
+
+# Calcular el error est á ndar
+SE <- sigma / sqrt ( n )
+
+# Gr á ficar la distribuci ón muestral de las medias si la hip ó tesis
+# nula fuera verdadera
+
+# Primero , el gr á fico base
+g_x_limites <- media_nula + c( -6.9 , 5) * SE
+g <- ggplot () + xlim ( g_x_limites )
+g <- g + labs ( x = "Tiempo de ejecución [ s ]" , y = "Densidad")
+g <- g + labs ( title = "Distribución muestral de las medias" )
+g <- g + theme_pubr ()
+
+# Agregamos la hip ó tesis nula
+dist_0 <- stat_function ( fun = dnorm , geom = "area",
+args = list ( mean = media_nula , sd = SE ) ,
+colour = "steelblue" , fill = "steelblue" , alpha = 0.1)
+g1 <- g + dist_0
+g1 <- g1 + geom_vline ( xintercept = media_nula , colour = "steelblue")
+
+# Calcular las regiones cr í ticas de la hip ó tesis nula
+z_critico_inferior <- qnorm ( alfa /2 , mean = media_nula , sd = SE , lower.tail = TRUE )
+z_critico_superior <- qnorm ( alfa /2 , mean = media_nula , sd = SE , lower.tail = FALSE )
+
+# Colorear regiones de rechazo en el gr á fico y el valor nulo
+g2 <- g1 + stat_function ( fun = dnorm , geom = "area",
+                           args = list ( mean = media_nula , sd = SE ) ,
+                           xlim = c(g_x_limites [1] , z_critico_inferior ) ,
+                           fill = "steelblue" , alpha = 0.6)
+
+g2 <- g2 + stat_function ( fun = dnorm , geom = "area",
+                           args = list ( mean = media_nula , sd = SE ) ,
+                           xlim = c( z_critico_superior , g_x_limites[2]) ,
+                           fill = "steelblue" , alpha = 0.6)
+print ( g2 )
+
+# Definir los valores verdaderos , usualmente desconocidos
+media_verdadera <- 55.6
+delta <- media_nula - media_verdadera
+
+# Agregar la verdadera distribuci ó n muestral de las medi as
+dist_v <- stat_function ( fun = dnorm , geom = "area",
+                          args = list ( mean = media_verdadera , sd = SE ) ,
+                          colour = "steelblue1" , fill = "steelblue1" , alpha = 0.1)
+
+g3 <- g2 + dist_v + geom_vline ( xintercept = media_verdadera , colour = "steelblue1")
+
+# Agregar anotaci ón del tama ñ o del efecto
+x_ann <- c( media_verdadera , media_nula )
+y_ann <- c( dnorm ( media_verdadera , mean = media_verdadera , sd = SE ) ,
+            dnorm ( media_nula , mean = media_nula , sd = SE ) )
+y_ann <- y_ann + 0.005
+
+g3 <- g3 + annotate("segment" , x = x_ann [1] , y = y_ann[1] ,
+                    xend = x_ann[2] , yend = y_ann[2] ,
+                    arrow = arrow ( angle = 10 , length = unit (0.03 , "npc") ,
+                                    ends = "both", type = "open") )
+
+g3 <- g3 + annotate("text", x = sum ( x_ann ) / 2 , y = y_ann[1] + 0.015 ,
+                     label = "delta", vjust = "top", parse = TRUE )
+print ( g3 )
+
+# Traspasar las regiones cr í ticas a la verdadera distrib uci ó n muestral
+# de las medias
+g4 <- g + dist_0 + dist_v
+g4 <- g4 + geom_vline ( xintercept = media_nula , colour = "steelblue")
+g4 <- g4 + geom_vline ( xintercept = media_verdadera , colour = "steelblue1")
+g4 <- g4 + stat_function ( fun = dnorm , geom = "area",
+                           args = list ( mean = media_nula , sd = SE ) ,
+                           xlim = c( g_x_limites [1] , z_critico_inferior ) ,
+                           fill = "steelblue" , alpha = 0.6)
+
+g4 <- g4 + stat_function ( fun = dnorm , geom = "area",
+                           args = list ( mean = media_nula , sd = SE ) ,
+                           xlim = c( z_critico_superior , g_x_limites[2]) ,
+                           fill = "steelblue" , alpha = 0.6)
+g4 <- g4 + stat_function ( fun = dnorm , geom = "area",
+                           args = list ( mean = media_verdadera , sd = SE ) ,
+                           xlim = c( g_x_limites [1] , z_critico_inferior ) ,
+                           fill = "steelblue1" , alpha = 0.3)
+g4 <- g4 + stat_function ( fun = dnorm , geom = "area",
+                           args = list ( mean = media_verdadera , sd = SE ) ,
+                           xlim = c( z_critico_superior , g_x_limites[2]) ,
+                           fill = "steelblue1" , alpha = 0.3)
+
+g4 <- g4 + stat_function ( fun = dnorm , geom = "area" ,
+                           args = list ( mean = media_verdadera , sd = SE ) ,
+                           xlim = c( z_critico_inferior , z_critico_superior ) ,
+                           fill = "yellow", colour = "black" , alpha = 0.3 ,
+                           pattern_spacing = 0.15 , pattern_density = 0.4 ,
+                           pattern_fill = "steelblue1" , pattern_colour = "steelblue1" ,
+                           pattern_angle = 45 , pattern_alpha = 0.3)
+
+# Agrega anotaci ó n del poder
+g4 <- g4 + annotate ("text", x = 50 , y = 0.1 , label = "poder [ inf ]" ,
+                     vjust = "top", parse = TRUE )
+
+g4 <- g4 + annotate ("text", x = 66.3 , y = 0.04 , label = "poder [ sup ]" ,
+                     vjust = "top", parse = TRUE )
+
+g4 <- g4 + annotate ("text", x = sum ( x_ann ) / 2 , y = y_ann[1] - 0.005 ,
+                     label = "beta", vjust = "top", parse = TRUE )
+
+g4 <- g4 + annotate ("segment" , x = 50 , y = 0.087 , xend = 52.5 , yend = 0.02 ,
+                     arrow = arrow ( angle = 10 , length = unit (0.03 , "npc") ,
+                                     ends = "last", type = "open") )
+
+g4 <- g4 + annotate ("segment" , x = 65 , y = 0.027 , xend = 64.2 , yend = 0.001 ,
+                     arrow = arrow ( angle = 10 , length = unit (0.03 , "npc") ,
+                     ends = "last", type = "open") )
+
+g4 <- g4 + annotate ("segment" , x = sum ( x_ann ) / 2 , y = y_ann[1] - 0.023 ,
+                     xend = 57 , yend = 0.10 ,
+                     arrow = arrow ( angle = 10 , length = unit (0.03 , "npc") ,
+                                     ends = "last", type = "open") )
+print ( g4 )
+
+# Calcular el poder
+poder_inf <- pnorm ( z_critico_inferior , mean = media_verdadera , sd = SE ,
+                       lower.tail = TRUE )
+
+poder_sup <- pnorm ( z_critico_superior , mean = media_verdadera , sd = SE ,
+                       lower.tail = FALSE )
+
+cat("\n-----------------------------------------------------\n")
+poder <- poder_inf + poder_sup
+cat ("\nPoder = ", poder , " \n ")
+
+# Calcular la probabilidad de cometer un error tipo II
+beta <- 1 - poder
+cat ("Beta = ", beta)
+cat("\n-----------------------------------------------------")
+```
+## EJEMPLO cálculo del tamaño (total) de las muestras requeridas en una prueba Z para dos muestras independientes.
+QUIERO SACAR n
+```{r}
+library ( ggpubr )
+library ( pwr )
+library ( tidyr )
+
+# Definir los valores de las hip ó tesis -> QUEREMOS OBTENER n
+alfa <- 0.05
+poder <- 0.90
+
+media_L <- 60
+sigma_L <- sqrt (144)
+
+media_M <- 70
+sigma_M <- sqrt (196)
+
+# Tama ñ o del efecto
+delta <- media_L - media_M
+sigma_agrupado <- sqrt (2 * ( sigma_L ** 2 + sigma_M ** 2) )
+delta_normalizado <- delta / sigma_agrupado
+
+# Tama ñ o total de la muestra
+factores <- pwr.norm.test ( d = delta_normalizado , sig.level = alfa ,
+                            power = poder , alternative = "less")
+print ( factores )
+
+cat ("Número total de observaciones : " , ceiling ( factores [["n"]]) , "\n")
+```
+
+
+## 2) POTENCIA DE LA PRUEBA T
+```{r}
+library ( effsize )
+library ( pwr )
+
+# Valores L *
+muestra_L <- c (50916.01 , 68274.39 , 60212.33 , 57973.14 , 74787.28 ,
+                  61396.89 , 72907.14 , 55807.43 , 61142.34 , 61986.08 ,
+                  69704.93 , 73718.12 , 70488.12 , 61836.25 , 71255.53 ,
+                  61133.57 , 57702.44 , 79472.14 , 69546.98 , 56296.91 ,
+                  79657.66 , 52530.76 , 64012.86 , 75995.01 , 53014.13 ,
+                  69883.13 , 62638.55 , 87312.34 , 47351.77 , 66807.14)
+n_L <- length ( muestra_L )
+
+# Valores M *
+muestra_M <- c (95075.86 , 64758.71 , 80269.73 , 74365.69 , 86104.68 ,
+                  41772.91 , 116915.74 , 33103.66 , 61553.61 , 55498.1 ,
+                  73996.43 , 101619.51 , 61037.45 , 53973.06 , 65523.67 ,
+                  69378.84 , 80254.29 , 84242.37 , 91978.80 , 73853.76 ,
+                  98258.72 , 61785.34 , 59753.93 , 66855.87 , 101783.46)
+n_M <- length ( muestra_M )
+
+# Obtener tama ñ o del efecto
+tamaño_efecto <- cohen.d( muestra_L , muestra_M )
+cat ("Tamaño del efecto :\n ")
+print ( tamaño_efecto )
+
+# Obtener poder de la prueba realizada
+d_de_Cohen <- tamaño_efecto [[ "estimate" ]]
+alfa <- 0.05
+valor_nulo <- 10
+factores <- pwr.t2n.test ( n1 = n_L , n2 = n_M , d = d_de_Cohen ,
+                            sig.level = alfa , alternative = "less")
+cat ("Factores de la prueba :\n ")
+print ( factores )
+
+# Mostrar probabilidad de error tipo II
+cat ("Beta : ", 1 - factores [[ "power"]] , "\ n ")
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```

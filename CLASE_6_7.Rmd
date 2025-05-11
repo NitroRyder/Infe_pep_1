@@ -1,0 +1,309 @@
+---
+title: "CLASE_6_7"
+author: "EJEMPLO"
+date: "2025-05-11"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(ggpubr)
+library(DescTools)
+library(ez)
+library(emmeans)
+library(nlme)
+```
+
+# 1) ANOVA DE UNA VÍA PARA MUESTRAS INDEPENDIENTES
+
+```{r}
+library ( DescTools )
+library ( ez )
+library ( ggpubr )
+library ( tidyverse )
+
+# Crear la matriz de datos en formato ancho
+A <- c(23 , 19 , 25 , 23 , 20)
+B <- c(26 , 24 , 28 , 23 , 29)
+C <- c(19 , 24 , 20 , 21 , 17)
+datos_anchos <- data.frame (A , B , C)
+
+# Llevar la matriz a formato largo
+datos_largos <- datos_anchos |> pivot_longer (c("A", "B", "C") ,
+                                               names_to = "Algoritmo" ,
+                                               values_to = "Tiempo")
+
+datos_largos [["Algoritmo" ]] <- factor ( datos_largos [["Algoritmo" ]])
+datos_largos [["Instancia" ]] <- factor (1: nrow ( datos_largos ) )
+
+# Comprobar la condici ó n de normalidad con gr á ficos Q -Q
+g <- ggqqplot ( datos_largos , x = "Tiempo", y = "Algoritmo" , color = "Algoritmo" ,
+                palette = c("steelblue" , "steelblue1" , "steelblue4") )
+
+g <- g + facet_wrap (~ Algoritmo )
+g <- g + rremove ("x.ticks") + rremove ("x.text")
+g <- g + rremove ("y.ticks") + rremove ("y.text")
+g <- g + rremove ("axis.title")
+print ( g )
+
+# SHAPIRO WILK POR GRUPO DESDE
+shapiro.test (A)
+shapiro.test (B)
+shapiro.test (C)
+```
+
+## ANOVA con aov ()
+
+```{r}
+prueba <- aov ( Tiempo ~ Algoritmo , data = datos_largos )
+cat ("Procedimiento ANOVA usando aov \n " )
+cat("-----------------------------------------------------------------------\n")
+print ( summary ( prueba ) )
+```
+
+## ANOVA con ezANOVA ()
+
+```{r}
+prueba2 <- ezANOVA ( data = datos_largos , dv = Tiempo , between = Algoritmo ,
+                     wid = Instancia , return_aov = TRUE )
+cat (" \nProcedimiento ANOVA usando ezANOVA \n" )
+cat("-----------------------------------------------------------------------\n")
+print ( prueba2 )
+```
+
+## Gráfico del tamaño del efecto
+
+```{r}
+g2 <- ezPlot ( data = datos_largos , dv = Tiempo ,
+wid = Instancia , between = Algoritmo ,
+y_lab = " Tiempo promedio de ejecución [ ms ] " , x = Algoritmo )
+# Cambiar sus colores
+g2 <- g2 + theme_pubr ()
+g2 [["layers" ]][[1]][[ "aes_params" ]][[ "colour" ]] <- "steelblue"
+g2 [["layers" ]][[2]][[ "aes_params" ]][[ "colour" ]] <- "steelblue"
+g2 [["layers" ]][[3]][[ "aes_params" ]][[ "colour" ]] <- "steelblue"
+# Y mostrar el gr á fico
+print ( g2 )
+```
+
+## POST-HOC
+
+### HOLM y BENJAMINI Y HOCHBERG
+
+```{r}
+alfa <- 0.025
+
+# Realizar y mostrar un procedimiento post - hoc de Holm
+holm <- pairwise.t.test ( datos_largos [["Tiempo"]] , datos_largos [["Algoritmo"]] ,
+                          p.adj = "holm", pool.sd = TRUE , paired = FALSE ,
+                          conf.level = 1 - alfa )
+cat (" \n \nProcedimiento post - hoc de Holm \n" )
+cat("-----------------------------------------------------------------------\n")
+print ( holm )
+
+# Realizar y mostrar un procedimiento post - hoc de Benjam ini y Hochberg
+bh <- pairwise.t.test ( datos_largos [["Tiempo"]] , datos_largos [["Algoritmo"]] ,
+                        p.adj = "fdr", pool.sd = TRUE , paired = FALSE ,
+                        conf.level = 1 - alfa )
+cat (" \nProcedimiento post - hoc de Benjamini y Hochberg \n" )
+cat("-----------------------------------------------------------------------\n")
+print ( bh )
+```
+
+### TUKEY
+
+```{r}
+# Realizar y mostrar un procedimiento post - hoc HSD de Tukey
+hsd <- TukeyHSD ( prueba , "Algoritmo" ,
+                  ordered = TRUE , conf.level = 1 - alfa )
+cat (" \nProcedimiento HSD de Tukey \n " )
+cat("-----------------------------------------------------------------------\n")
+print ( hsd )
+```
+
+### SCHEFFÉ
+
+```{r}
+# Crear matriz de contrastes para la prueba de Sche ff é
+contrastes <- matrix (c(1 , -1 , 0 , 1 , 0 , -1 , 0 , 1 , -1 , 
+                        1 , -0.5 , -0.5 , -0.5 , 1 , -0.5 , -0.5 , -0.5 , 1) ,
+ncol = 3 , byrow = TRUE )
+# Trasponer matriz de contrastes
+# ( para que cada contraste sea una columna ).
+contrastes <- t( contrastes )
+
+# Realizar y mostrar un procedimiento post - hoc de Scheff é
+scheffe <- ScheffeTest ( x = prueba , which = "Algoritmo" ,
+contrasts = contrastes , conf.level = 1 - alfa )
+cat (" \nProcedimiento post - hoc de Scheffé \n " )
+cat("-----------------------------------------------------------------------\n")
+print ( scheffe )
+```
+
+# 2) ANOVA DE UNA VÍA PARA MUESTRAS CORRELACIONADAS
+
+```{r}
+library ( emmeans )
+library ( ez )
+library ( ggpubr )
+library ( nlme )
+library ( tidyr )
+
+# Crear la matriz de datos
+Instancia <- factor (1:6)
+Bubblesort <- c (31.6 , 29.3 , 30.7 , 30.8 , 29.8 , 30.3)
+Mergesort <- c (25.0 , 25.7 , 25.7 , 23.7 , 25.5 , 24.7)
+Quicksort <- c (23.2 , 22.6 , 23.4 , 23.3 , 21.8 , 23.9)
+Radixsort <- c (30.1 , 28.4 , 28.7 , 28.3 , 29.9 , 29.1)
+datos_anchos <- data.frame ( Instancia , Bubblesort , Mergesort , Quicksort , Radixsort )
+
+# Llevar los datos a formato largo
+datos_largos <- datos_anchos |> pivot_longer ( -Instancia ,
+                                                names_to = "Algoritmo" ,
+                                                values_to = "Tiempo") |> mutate ( Algoritmo = factor ( Algoritmo ) )
+
+# Verificar normalidad por medio de gr á ficos Q - Q
+tonos_azules = c("steelblue" , "steelblue1" , "cornflowerblue" , "steelblue4")
+g <- ggqqplot ( datos_largos , x = "Tiempo", y = "Algoritmo" ,
+                color = "Algoritmo" , palette = tonos_azules )
+g <- g + facet_wrap (~ Algoritmo )
+g <- g + rremove ("x.ticks") + rremove ("x.text")
+g <- g + rremove ("y.ticks") + rremove ("y.text")
+g <- g + rremove ("axis.title")
+print ( g )
+
+# SHAPIRO WILK POR GRUPO DESDE
+shapiro.test (Bubblesort)
+shapiro.test (Mergesort)
+shapiro.test (Quicksort)
+shapiro.test (Radixsort)
+```
+
+## aov() o ezANOVA()
+
+```{r}
+cat (" Procedimiento ómnibus \n ")
+cat (" =====================\n \n" )
+
+# Realizar y mostrar el procedimiento ANOVA para muestra s repetidas con aov ()
+prueba <- aov ( Tiempo ~ Algoritmo + Error ( Instancia / Algoritmo ) ,
+                data = datos_largos )
+
+cat (" Procedimiento ANOVA para muestras repetidas usando aov \n " )
+cat("-----------------------------------------------------------------------\n")
+print ( summary ( prueba ) )
+
+# Realizar y mostrar el procedimiento ANOVA para muestra s repetidas con ezANOVA ()
+prueba2 <- ezANOVA ( data = datos_largos , dv = Tiempo , wid = Instancia ,
+                     within = Algoritmo )
+
+cat (" \nProcedimiento ANOVA para muestras repetidas usando ezANOVA \n " )
+cat("-----------------------------------------------------------------------\n")
+print ( prueba2 )
+```
+
+## gráfico del tamaño del efecto
+
+```{r}
+g2 <- ezPlot ( data = datos_largos , dv = Tiempo , wid = Instancia , within = Algoritmo ,
+               y_lab = " Tiempo promedio de ejecución [ ms ] " , x = Algoritmo )
+# Cambiar sus colores
+g2 <- g2 + theme_pubr ()
+g2 [["layers" ]][[1]][[ "aes_params" ]][[ "colour" ]] <- "steelblue"
+g2 [["layers" ]][[2]][[ "aes_params" ]][[ "colour" ]] <- "steelblue"
+g2 [["layers" ]][[3]][[ "aes_params" ]][[ "colour" ]] <- "steelblue"
+# Y mostrar el gr á fico
+print ( g2 )
+```
+
+## POST-HOC
+
+### HOLM y BENJAMINI Y HOCHBERG
+
+```{r}
+cat (" \ nProcedimiento post - hoc \n" )
+cat (" ======================\n \n " )
+
+# Definir el nivel de significaci ó n
+alfa <- 0.01
+
+# Realizar y mostrar un procedimiento post - hoc de Holm
+holm <- pairwise.t.test ( datos_largos [["Tiempo"]] , datos_largos [["Algoritmo"]] ,
+                          p.adj = "holm", paired = TRUE , conf.level = 1 - alfa )
+cat (" Procedimiento post - hoc de Holm \n " )
+cat("-----------------------------------------------------------------------\n")
+print ( holm )
+
+# Realizar y mostrar un procedimiento post - hoc de Benjam ini y Hochberg
+bh <- pairwise.t.test ( datos_largos [[ "Tiempo"]] , datos_largos [["Algoritmo"]] ,
+                        p.adj = "fdr", paired = TRUE , conf.level = 1 - alfa )
+cat (" \nProcedimiento post - hoc de Benjamini y Hochberg \n" )
+cat("-----------------------------------------------------------------------\n")
+print ( bh )
+```
+
+## Construir un modelo lineal mixto y estimar medias marginales
+
+### Tukey y Scheffé
+
+```{r}
+mixto <- lme ( Tiempo ~ Algoritmo , data = datos_largos , random = ~1| Instancia )
+medias <- emmeans ( mixto , "Algoritmo")
+
+# Realizar , mostrar y graficar un procedimiento post - hoc HSD de Tukey
+hsd <- contrast ( medias , method = "pairwise" , adjust = "tukey")
+cat (" \ n Procedimiento HSD de Tukey \n " )
+cat (" - - - -- - - - - - -- - - -- - - - - - - - - --\n " )
+print ( hsd , infer = TRUE , level = 1 - alfa )
+print ( plot ( hsd , level = 1 - alfa , colors = "steelblue") +
+          ggtitle ("Post - hoc HSD de Tukey ") +
+          xlab ("Diferencias en tiempos de ejecución \n para las mismas instancias ") +
+          ylab ("Pares de algoritmos ") + theme_pubr () )
+
+# Crear la lista de contrastes a analizar con la prueba de Scheff é
+contrastes <- list (" Q vs B " = c( -1 , 0, 1 , 0) , " Q vs M" = c(0 , -1, 1 , 0) ,
+                    " Q vs R" = c(0 , 0 , 1 , -1) , " M vs B" = c( -1 , 1, 0 , 0) ,
+                    " M vs R" = c(0 , 1 , 0 , -1) )
+
+# Realizar y mostrar un procedimiento post - hoc de Scheff é
+scheffe <- contrast ( medias , method = contrastes , adjust = "scheffe")
+cat (" \nProcedimiento post - hoc de Scheffé \n " )
+cat (" - - - -- - - - - - -- - - -- - - - - - - - - -- - - - - - --\ n" )
+print ( scheffe , infer = TRUE , level = 1 - alfa )
+print ( plot ( scheffe , level = 1 - alfa , colors = "steelblue") +
+          ggtitle ("Post - hoc de Scheffé") +
+          xlab ("Diferencias en tiempos de ejecución \n para las mismas instancias ") +
+          ylab ("Pares de algoritmos ") + theme_pubr () )
+
+# Mostrar y graficar tama ñ os del efecto
+cat (" \nIntervalos de confianza para las medias marginales \n " )
+cat (" - - - -- - - - - - -- - - -- - - - - - - - - -- - - - - - -- - -- - - - - - - - -- - - - - -\ n " )
+print ( summary ( medias , level = 1 - alfa , adjust = "none") )
+print ( plot ( medias , level = 1 - alfa , adjust = "none", colors = "steelblue") +
+          ggtitle ( sprintf (" Tamaño del efecto ( %d % % IC ) ", round ((1 - alfa ) * 100) )) +
+          xlab (" EMM del tiempos de ejecución\n requerido para las mismas instancias ") +
+          theme _ pubr () )
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```

@@ -1,0 +1,320 @@
+---
+title: "CLASE_5"
+author: "EJEMPLO"
+date: "2025-05-11"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(ggpubr)
+library(DescTools)
+library(ez)
+library(emmeans)
+library(nlme)
+```
+
+# INFERENCIA NO PARAMÉTRICA CON PROPORCIONES
+
+## 1) PRUEBA EXACTA DE FISHER
+```{r}
+# Construir los datos y la tabla de contingencia
+Vacuna <- c( rep ("Argh", 6) , rep ("Grrr", 11) )
+Resultado <- c( rep ("Humano", 12) , rep ("Vampiro" , 5) )
+Resultado <- factor ( Resultado , levels = c("Vampiro" , "Humano") )
+datos <- data.frame ( Resultado , Vacuna )
+tabla <- xtabs (~. , datos )
+print ( tabla )
+
+# Aplicar la prueba exacta de Fisher a la tabla de contingencia
+prueba_1 <- fisher.test ( tabla )
+cat (" \n ")
+cat("-----------------------------------------------------------------------\n")
+cat ("Prueba exacta de Fisher usando la tabla de contingencia \n ")
+cat("-----------------------------------------------------------------------\n")
+print ( prueba_1)
+
+# Aplicar la prueba exacta de Fisher directamente a las muestras
+prueba_2 <- fisher.test ( Vacuna , Resultado )
+cat("-----------------------------------------------------------------------\n")
+cat (" Prueba exacta de Fisher usando las muestras :\n " )
+cat("-----------------------------------------------------------------------\n")
+print ( prueba_2)
+```
+## 2) PRUEBA CHI-CUADRADO DE PEARSON
+
+###  a) Prueba chi-cuadrado de homogeneidad
+```{r}
+ # Crear la tabla de contingencia
+programadores <- c(42 , 56 , 51 , 27 , 24)
+programadoras <- c(25 , 24 , 27 , 15 , 9)
+tabla <- as.table ( rbind ( programadores , programadoras ) )
+dimnames ( tabla ) <- list ( sexo = c("programadores" , "programadoras") ,
+lenguajes = c("C", "Java", "Python", "Ruby", "Otro") )
+
+# Definir condiciones y el nivel de significaci ó n
+minima_frec_esperada <- 5
+alfa <- 0.05
+
+# Mostrar la tabla
+cat ("Tabla de contingencia :\n ")
+cat("-----------------------------------------------------------------------\n")
+print ( tabla )
+
+cat (" \n \nPrueba global :\n ")
+cat ("==============\n \n ")
+
+# Obtener las frecuencias esperadas
+sumas_filas <- apply ( tabla , 1 , sum )
+sumas_columnas <- apply ( tabla , 2 , sum )
+suma_total <- sum ( tabla )
+esperadas <- outer ( sumas_filas , sumas_columnas , "*") / suma_total
+esperadas <- round ( esperadas , 1)
+dimnames ( esperadas ) <- list ( sexo = c("programadores" , "programadoras") ,
+                                 lenguajes = c("C", "Java", "Python", "Ruby", "Otro") )
+
+# Realizar prueba chi - cuadrado de homogeneidad
+prueba <- chisq.test ( tabla )
+
+# Mostrar las frecuencias esperadas y si hay grupos que no cumplen con el m í nimo
+cat ("Frecuencias esperadas:\n ")
+cat("-----------------------------------------------------------------------\n")
+print ( esperadas )
+cat ("Frecuencias esperadas bajo" , minima_frec_esperada )
+cat (":", sum ( esperadas < minima_frec_esperada ) , "\n")
+
+# Mostrar el resultado de la prueba
+cat (" \n Resultado de la prueba chi - cuadrado :\n" )
+cat("-----------------------------------------------------------------------\n")
+print ( prueba )
+```
+
+### b) Prueba chi-cuadrado de bondad de ajuste
+```{r}
+# Crear la tabla de contingencia
+nomina <- c(236 , 78 , 204 , 76 , 66)
+muestra <- c(17 , 9 , 14 , 10 , 5)
+tabla <- as.table ( rbind ( nomina , muestra ) )
+dimnames ( tabla ) <- list ( grupo = c("Nómina", "Muestra") ,
+lenguajes = c("C", "Java", "Python", "Ruby", "Otro") )
+
+# Definir condiciones y el nivel de significaci ó n
+minima_frec_esperada <- 5
+alfa <- 0.05
+
+# Mostrar la tabla
+cat ("Tabla de contingencia: \n ")
+cat("-----------------------------------------------------------------------\n")
+print ( tabla )
+
+cat (" \n \n Prueba global: \n ")
+cat (" ==============\n \n ")
+
+# Realizar prueba chi - cuadrado de bondad de ajuste
+prueba <- chisq.test ( tabla )
+
+# Mostrar las frecuencias esperadas
+cat ("Frecuencias esperadas: \n ")
+cat("-----------------------------------------------------------------------\n")
+esperadas <- round ( prueba [[ "expected"]] , 1)
+print ( esperadas )
+cat ("Frecuencias esperadas bajo" , minima_frec_esperada )
+cat (" :", sum ( esperadas < minima_frec_esperada ) , " \n ")
+
+# Mostrar el resultado de la prueba
+cat (" \n Resultado de la prueba chi - cuadrado: \n " )
+cat("-----------------------------------------------------------------------\n")
+print ( prueba )
+```
+
+### c) Prueba chi-cuadrado de independencia
+```{r}
+# Crear la tabla de contingencia
+comestible <- c(404 , 1948 , 32 , 228 , 1596)
+venenoso <- c(48 , 1708 , 0 , 600 , 1556)
+tabla <- as.table ( rbind ( comestible , venenoso ))
+dimnames ( tabla ) <- list ( tipo = c(" comestible " , " venenoso ") ,
+                             sombrero = c(" campana " , " convexo " , " hundido " , " nudoso " ,
+                                          " plano ") )
+
+# Definir condiciones y el nivel de significaci ó n
+minima_frec_esperada <- 5
+alfa <- 0.05
+
+# Mostrar la tabla
+cat (" Tabla de contingencia : \n ")
+cat("-----------------------------------------------------------------------\n")
+print ( tabla )
+
+cat (" \n \n Prueba global :\n ")
+cat (" ==============\n \n ")
+
+# Realizar prueba chi - cuadrado de independencia
+prueba <- chisq.test ( tabla )
+
+# Mostrar las frecuencias esperadas
+cat (" Frecuencias esperadas :\n ")
+cat("-----------------------------------------------------------------------\n")
+esperadas <- round ( prueba [[ "expected"]] , 3)
+print ( esperadas )
+cat ("Frecuencias esperadas bajo " , minima_frec_esperada )
+cat (":", sum ( esperadas < minima_frec_esperada ) , " \n ")
+
+# Mostrar el resultado de la prueba
+cat (" \n Resultado de la prueba chi - cuadrado :\n " )
+cat("-----------------------------------------------------------------------\n")
+print ( prueba )
+```
+## 3) PROCEDIMIENTOS POST-HOC
+```{r}
+# Realizar procedimiento post - hoc si corresponde
+if( prueba [[ "p.value" ]] < alfa )
+{
+cat (" Procedimiento post - hoc :\n ")
+cat (" ======================\n \n " )
+
+# Obtener los pares de formas de sombrero
+pares <- t( combn ( colnames ( tabla ) , 2) )
+N <- nrow ( pares )
+
+# Obtener las pruebas post - hoc
+pruebas_ph <- sapply (1: N , function ( i ) chisq.test ( tabla [ , pares [i , ]] ,
+                                                         correct = FALSE ) ,simplify = FALSE )
+
+# Identificar las pruebas chi - cuadrado post - hoc que no cumplen condiciones
+i_no <- which ( sapply (1: N , function ( i ) min ( pruebas_ph [[ i ]][[ "expected" ]]) <
+                          minima_frec_esperada ))
+
+# Cambiar la prueba post - hoc cuando no se cumplen las condiciones
+if( length ( i_no ) > 0)
+pruebas_ph [ i_no ] <- sapply ( i_no , function ( i ) fisher.test ( tabla [ , pares [i ,]]) ,
+simplify = FALSE )
+
+# Preparar tabla con el resumen de resultados
+nombre_ph <- rep ("Chi cuadrado" , N)
+nombre_ph [ i_no ] <- " Ex . de Fisher "
+estadistico <- sapply (1: N , function ( i ) pruebas_ph [[ i ]][[ "statistic" ]])
+estadistico [ i_no ] <- sapply ( i_no , function ( i ) pruebas_ph [[ i ]][[ "estimate" ]])
+estadistico <- round ( unlist ( estadistico ) , 2)
+p_val <- sapply (1: N , function ( i ) pruebas_ph [[ i ]][[ "p.value" ]])
+p_adj_h <- p.adjust (p_val , method = "holm")
+p_adj_by <- p.adjust (p_val , method = "BY")
+sig_h <- ifelse (p_adj_h < alfa , "*", " ")
+sig_by <- ifelse (p_adj_by < alfa , "*", " ")
+
+resultados <- data.frame ( pares [ , 1] , pares [ , 2] , nombre_ph , estadistico )
+resultados <- cbind ( resultados , p_val , p_adj_h , sig_h , p_adj_by , sig_by )
+colnames ( resultados ) <- c("Forma 1" , "Forma 2" , "Prueba", "Estad í stico" ,
+                             "Valor p" , "P.adj_Holm", " ", "P.adj_BY", " ")
+
+# Mostrar resumen de resultados
+print ( resultados , digits = 3)
+}
+```
+
+## 4) PRUEBA DE MCNEMAR
+```{r}
+# Construir la tabla de contingencia
+estudiante <- seq (1:25)
+modelo_1 <- c( rep (" Correcto " , 16) , rep (" Incorrecto " , 9) )
+modelo_2 <- c( rep (" Correcto " , 9) , rep (" Incorrecto " , 11) , rep (" Correcto " , 5) )
+datos <- data.frame ( estudiante , modelo_2 , modelo_1)
+tabla <- table ( modelo_2 , modelo_1)
+
+# Mostrar la tabla
+cat (" Tabla de contingencia :\n ")
+cat("-----------------------------------------------------------------------\n")
+print ( tabla )
+
+# Aplicar la prueba de McNemar a la tabla y mostrarla
+prueba_1 <- mcnemar.test ( tabla , correct = FALSE )
+cat (" \nPrueba de McNemar sobre la tabla de contingencia :\n " )
+cat("-----------------------------------------------------------------------\n")
+print ( prueba_1)
+
+# Pero tambi é n se puede aplicar directamente a las muestras
+prueba_2 <- mcnemar.test ( modelo_2 , modelo_1 , correct = FALSE )
+cat (" Prueba de McNemar sobre las muestras :\n " )
+cat("-----------------------------------------------------------------------\n")
+print ( prueba_2)
+
+```
+
+## 5) PRUEBA Q DE COCHRAN
+```{r}
+
+library ( tidyverse )
+library ( RVAideMemoire )
+#library ( rcompanion )
+
+# Crear la matriz de datos
+instancia <- 1:15
+annealing <- c(0 , 1 , 0, 0 , 0 , 0 , 0 , 1, 0 , 0 , 0 , 0 , 1 , 0 , 0)
+hormigas <- c(0 , 0 , 1, 0 , 0 , 1 , 0 , 0, 0 , 1 , 0 , 0 , 0 , 0 , 1)
+genetico <- c(1 , 0 , 1, 1 , 1 , 1 , 0 , 1, 0 , 1 , 1 , 0 , 0 , 1 , 1)
+datos_anchos <- data.frame ( instancia , annealing , hormigas , genetico )
+
+# Llevar la matriz de datos a formato largo
+datos_largos <- datos_anchos |>
+  pivot_longer (c("annealing" , "hormigas" , "genetico") ,
+                names_to = "metaheuristica" , values_to = "resultado")
+
+datos_largos [["instancia" ]] <- factor ( datos_largos [["instancia" ]])
+datos_largos [["metaheuristica" ]] <- factor ( datos_largos [["metaheuristica" ]])
+
+# Definir condiciones y el nivel de significaci ó n
+minimo_tamaño_muestra <- 24
+alfa <- 0.05
+
+cat (" Prueba global :\n")
+cat (" ==============\n \n ")
+
+# Mostrar tama ñ o de la muestra
+N <- nrow ( datos_anchos [ , -1]) * ncol ( datos_anchos [ , -1])
+cat (" Tamaño de la muestra : " , N , " ")
+cat ( ifelse ( N > minimo_tamaño_muestra , " > ", " <= ") )
+cat ( minimo_tamaño_muestra , " \n ")
+# Realizar la prueba Q de Cochran
+prueba <- cochran.qtest ( resultado ~ metaheuristica | instancia ,
+                          data = datos_largos , alpha = 0.05)
+
+# Mostrar el resultado de la prueba
+cat (" \nResultado de la prueba Q de Cochran :\n " )
+cat("-----------------------------------------------------------------------\n")
+print ( prueba )
+```
+
+### Procedimiento post-hoc para la prueba Q de Cochran (PROBLEMAS CON pairwiseMcnemar)
+```{r}
+# Realizar procedimiento post - hoc si corresponde
+if( prueba [[ "p.value" ]] < alfa )
+{
+cat (" \n \nProcedimiento post - hoc :\n " )
+cat (" ======================\n ")
+
+# Procedimiento post - hoc con correcci ó n de Holm
+post_hoc_1 <- pairwiseMcnemar( resultado ~ metaheuristica | instancia ,
+                                data = datos_largos ,
+                                test = "mcnemar" , correct = FALSE , method = "holm")
+
+cat (" \nProcedimiento post - hoc con ajuste de Holm \n " )
+cat("-----------------------------------------------------------------------\n")
+print ( post_hoc_1)
+
+# Procedimiento post - hoc con correcci ó n de Benjamini y Yekutieli
+post_hoc_2 <- pairwiseMcnemar( resultado ~ metaheuristica | instancia ,
+                                data = datos_largos ,
+                                test = "mcnemar" , correct = FALSE , method = "BY")
+
+cat (" \nProcedimiento post - hoc con ajuste Benjamini y Yekutieli \n " )
+cat("-----------------------------------------------------------------------\n")
+print ( post_hoc_2)
+}
+```
+
+```{r}
+
+```
