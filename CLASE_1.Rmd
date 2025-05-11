@@ -1,0 +1,188 @@
+---
+title: "CODIGOS C1"
+author: "EJEMPLO"
+date: "2025-05-11"
+output: html_document
+---
+
+# CAPÍTULO 1. INTRODUCCIÓN
+
+## LIBRERÍAS
+
+```{r setup, warning=FALSE, message=FALSE}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(ggpubr)
+library(DescTools)
+library(ez)
+library(emmeans)
+library(nlme)
+```
+
+## LECTURA DE ARCHIVOS
+
+```{r}
+# LECTURA DE DOCUMENTOS EN R
+
+# Importar desde un archivo de valores separados por coma
+# en formato inglés ( figura 1.2 b).
+datos1 <- read.csv ("EP06 Datos.csv")
+
+# Importar desde un archivo de valores separados por coma
+# en formato español ( figura 1.2 c).
+datos2 <- read.csv2 ("EP05 Datos.csv")
+
+```
+
+## FILTROS
+
+```{r}
+# Filtrar los datos para el área de Biología
+m1 <- datos1 %>% filter(area == "Biología") %>% select(id, dificultad, tiempo)
+
+# Filtrar los datos para el país Ecuador y el tipo de cubo 2x2
+m2 <- datos2 |>
+  filter(tipo == "Megaminx" & (pais == "Ecuador" | pais == "Uruguay" |pais == "Argentina"))|>
+  arrange(desc(tiempo))
+```
+
+# GRAFICOS
+## HISTOGRAMA
+```{r}
+# Histograma de la variable dificultad
+g1 <- gghistogram(
+  datos1,
+  x = "tiempo",
+  bins = 30,
+  add = "mean",
+  title = "Distribución de la tiempo por área",
+  xlab = "tiempo",
+  ylab = "area",
+  color = "blue",
+  fill = "blue")
+
+print(g1)
+
+
+# Histograma de la variable tiempo
+g2 <- gghistogram(
+  datos2,
+  x = "tiempo",
+  bins = 30,
+  add = "mean",
+  title = "Distribución del tiempo por país",
+  xlab = "Tiempo",
+  ylab = "Densidad",
+  color = "red",
+  fill = "red")
+
+print(g2)
+```
+
+## BOXPLOT
+```{r}
+# Boxplot de la variable tiempo por área
+g3 <- ggboxplot(datos1[["tiempo"]],
+  color = "blue",
+  fill = "blue",
+  ylab = "tiempo")
+
+g3 <- g3 + rremove("x.ticks")
+g3 <- g3 + rremove("x.text")
+g3 <- g3 + rremove("x.title")
+
+print(g3)
+```
+
+## Gráfico de barras para la variable Cambios .
+```{r}
+# Gráfico de barras para la variable Cambios
+g4 <- ggbarplot(datos2, 
+  x = "pais",
+  y = "tiempo",
+  fill = "pais",
+  color = "pais",
+  title = "Pais por Tiempo",
+  xlab = "pais",
+  ylab = "tiempo")
+
+print(g4)
+```
+
+## Gráfico de torta para la variable Cambios.
+```{r}
+# Gráfico de torta para la variable Cambios
+g5 <- ggpie(datos2, 
+  x = "tiempo",
+  label = "pais",
+  fill = "pais",
+  color = "pais",
+  title = "Pais por Tiempo",
+  lab.pos = "out")
+
+print(g5)
+```
+
+## Gráfico de dispersión para las variables Rendimiento y Peso .
+```{r}
+# Gráfico de dispersión para las variables Rendimiento y Peso
+g6 <- ggscatter(datos1, 
+  x = "tiempo",
+  y = "dificultad",
+  color = "area",
+  title = "Rendimiento por Peso",
+  xlab = "tiempo",
+  ylab = "dificultad")
+
+print(g6)
+```
+
+## Gráficos de dispersión con diferentes tipos de asociación entre las variables.
+```{r}
+# Gráficos de dispersión con diferentes tipos de asociación entre las variables
+g7 <- ggscatter(datos1, 
+  x = "tiempo",
+  y = "dificultad",
+  color = "area",
+  title = "Rendimiento por Peso",
+  xlab = "tiempo",
+  ylab = "dificultad") +
+  geom_smooth(method = lm, se = FALSE, color = "blue") +
+  stat_cor(method = "pearson", label.x.npc = "left", label.y.npc = "top")
+
+print(g7)
+```
+
+## Gráfico de cajas por grupo.
+```{r}
+# Gráfico de cajas por grupo
+g8 <- ggboxplot(datos1, 
+  x = "area",
+  y = "tiempo",
+  color = "area",
+  fill = "area",
+  title = "Rendimiento por Peso",
+  xlab = "area",
+  ylab = "tiempo") +
+  stat_compare_means(label.y = 30)
+
+print(g8)
+```
+
+## Gráfico de tiras
+```{r}
+# Gráfico de tiras
+g9 <- ggstripchart(datos1, 
+  x = "area",
+  y = "tiempo",
+  color = "area",
+  fill = "area",
+  title = "Rendimiento por Peso",
+  xlab = "area",
+  ylab = "tiempo") +
+  stat_compare_means(label.y = 30)
+
+print(g9)
+```
