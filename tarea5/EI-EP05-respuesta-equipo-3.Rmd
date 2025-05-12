@@ -1,0 +1,234 @@
+---
+title: "EI-EP05-respuesta-equipo-3"
+output: html_document
+---
+
+```{r}
+# Establecer el mirror de CRAN
+options(repos = c(CRAN = "https://cloud.r-project.org"))
+
+if (!require("ggpubr")) install.packages("ggpubr")
+if (!require("dplyr")) install.packages("dplyr")
+if (!require("ggpattern")) install.packages("ggpattern")
+if (!require("ggplot2")) install.packages("ggplot2", dependencies = TRUE)
+if (!require("gridExtra")) install.packages("gridExtra")
+if (!require("tidyr")) install.packages("tidyr")
+if (!require("pwr")) install.packages("pwr")
+if (!require("DescTools")) install.packages("DescTools")
+
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(ggpubr)
+library(DescTools)
+
+if (!require(dplyr)){
+  install.packages("dplyr", dependencies=TRUE)
+  require(dplyr)
+}
+
+```
+
+[¿Qué se pide determinar?]{.underline}
+
+-   Saber si existen diferencias en el tiempo de resolución de cubos Megaminx entre participantes de Ecuador, Uruguay y Argentina.
+
+[Solución propuesta:]{.underline}
+
+-   Como se desea saber si existen diferencias en el tiempo de resolución de cubos entre participantes de diferentes países, se propone el uso de el tipo de prueba ANOVA para la resolución de la pregunta, seguido de dos procedimientos Post-hoc para reforzar la respuesta obtenida.
+
+[Hipótesis a trabajar:]{.underline}
+
+-   H0: No existen diferencias en el tiempo de resolución de cubos Megaminx entre participantes de Ecuador, Uruguay y Argentina.
+
+-   HA: Existe al menos una diferencia en el tiempo de resolución de cubos Megaminx entre participantes de Ecuador, Uruguay y Argentina.
+
+```{r}
+#-----------------------------------------------------------------------------------------------------------------------------
+# Leer los datos
+dato <- read.csv2("EP05 Datos.csv")
+#-----------------------------------------------------------------------------------------------------------------------------
+# OBTENCION DE DATOS Y FILTRO
+m2 <- dato |>
+  filter(tipo == "Megaminx" & (pais == "Ecuador" | pais == "Uruguay" |pais == "Argentina"))|>
+  arrange(desc(tiempo))
+
+alfa <- 0.05
+```
+
+# VERIFICACIÓN DE ANOVA:
+
+1)  La escala con la que se mide la variable tiene propiedades de una escala de intervalos iguales.
+
+-   Para este caso, trabajamos con el tiempo que toma al participante en resolver el cubo de la prueba, lo que es una escala de intervalos que también es una razón que posee un cero absoluto o punto cero, siendo este las 00:00, aplicado para cada participante.
+
+2)  Las k muestras son independientes y deben ser obtenidas de forma aleatoria.
+
+-   En este caso el tiempo de resolución del cubo de pruebas es independiente al país al cual provenga el participante, tanto como cada competidor no se ve involucrado en el tiempo de resolución para el otro.
+
+-   Por el enunciado se indica que se usaron una muestra aleatoria de los datos de la competencia, en la cual participaron más de 2.000 personas.
+
+-   Cumplir la condición que dado el supuesto aproximado de una población de 2.000 competidores, los participantes seleccionados para comparar sus tiempos son 38 argentinos, 39 ecuatorianos y 37 uruguayos, lo cual suma 114 participantes, menor al 10% (200 participantes) de la población que participó, asegurando independencia.
+
+3)  Se puede suponer que las poblaciones de origen siguen una distribución normal.
+
+```{r}
+#-----------------------------------------------------------------------------------------------------------------------------
+
+# TENIENDO EN CONSIDERACIÓN UN nivel de significación DE 0.05
+tiempo_ecuador <- m2 |> filter(pais == "Ecuador") |> pull(tiempo)
+tiempo_uruguay <- m2 |> filter(pais == "Uruguay") |> pull(tiempo)
+tiempo_argentina <- m2 |> filter(pais == "Argentina") |> pull(tiempo)
+
+# Pruebas Shapiro-Wilk por "país"
+shap_ecuador <- shapiro.test(tiempo_ecuador)
+shap_uruguay <- shapiro.test(tiempo_uruguay)
+shap_argentina <- shapiro.test(tiempo_argentina)
+
+cat("--------------------------------------------------", "\nRESULTADOS SHAPIRO:", "\nSHAPIRO ECUADOR: ", shap_ecuador$p.value, "\nSHAPIRO URUGUAY: ", shap_uruguay$p.value, "\nSHAPIRO ARGENTIA: ", shap_argentina$p.value, "\n--------------------------------------------------\n")
+
+# GRAFICACIÓN Q-Q
+g <- ggqqplot(m2, x = "tiempo", color = "pais", palette = "jco") +
+     facet_wrap(~ pais, scales = "free") +
+     rremove("x.ticks") + rremove("x.text") +
+     rremove("y.ticks") + rremove("y.text") +
+     rremove("axis.title")
+
+g
+
+```
+
+-   Como todo valor p obtenido proveniente de la aplicación de la función shapiro.wilk sobre los tiempos de cada país resulta ser mayor al valor nivel de significación, junto a que los gráficos Q-Q referentes a cada país, los cuales muestran una distribución de los residuos que se aproxima a la normal, gracias a esta información se puede asumir que los residuos se distribuyen de como una distribución normal.
+
+4)  Si las muestras provienen de mas de una población, estas tienen igual varianza.
+
+-   Para este caso, es necesario ver que exista homogeneidad en las varianzas, en otra palabras comprobar si la razón entre la máxima y mínima varianza muestral de los grupos no sea superior a 1,5.
+
+```{r}
+#-----------------------------------------------------------------------------------------------------------------------------
+# CALCULAR VARAINZAS POR GRUPO DE ALIMENTACIÓN
+varianzas <- aggregate(tiempo ~ pais, data = m2, FUN = var) # VARIANZAS
+
+# Extraer varianzas por grupo
+razon_max_min <- max(varianzas$tiempo) / min(varianzas$tiempo)
+cat("RAZON MAX MIN: ", razon_max_min, "\n")
+```
+
+-   Como se puede observar, la razón entre la máxima y mínima de la varianza muestral de los grupos obtenido es 1.25061 , el cual es menor a 1,5. Lo que significa que se cumple con la condición de homogeneidad.
+
+[Las condiciones se cumplen:]{.underline}
+
+Como se puede observar, de las cuatro condiciones presentadas se cumplen. De igual forma es bueno recordar que el procedimiento ANOVA es descrito como una prueba robusta.
+
+Para resolver esta pregunta, es necesario utilizar la función aov() con la información del conjunto de datos.
+
+```{r}
+#-----------------------------------------------------------------------------------------------------------------------------
+#APLICACIÓN DE ANOVA
+
+aov_resultado <- aov(tiempo ~ pais, data = m2)
+summary(aov_resultado)
+```
+
+[Resultado anova:]{.underline}
+
+Como es posible observar, el valor p = 2e-16 obtenido es menor a un nivel de significación de 0.05, lo que significa que se rechaza la hipótesis nula H0. Lo que indica que si existe al menos una diferencia en el tiempo de resolución de cubos Megaminx entre participantes de Ecuador, Uruguay y Argentina.
+
+Ahora bien, como el valor p obtenido es significativo, en otras palabras, es menor a nivel de significación supuesto, es necesario corroborar con mayor detenimiento cuales son las relaciones más importantes dado que existen diferencias en el tiempo de resolución de cubos Megaminx entre participantes de Ecuador, Uruguay y Argentina.
+
+Para notar dichas relaciones, utilizaremos procedimientos Post-Hoc. Como sabemos, los procedimientos a los que se puede someter los resultados de Anova pueden ser menos o más conservadores. Partiendo de menos a más estrictos está Tukey, luego Bonferroni y el más conservador entre estos, Scheffe. Entre más conservadores, podemos estar más seguros que lo que obtenemos es verdadero, pero al mismo tiempo, podemos sin querer negar resultados que si eran positivos. Es por esto que proponemos analizar lo obtenido por las tres pruebas, para poder comprender como es que los datos reaccionan a las pruebas.
+
+```{r}
+#-----------------------------------------------------------------------------------------------------------------------------
+# PROCEDIMIENTO POST-HOC CON PRUEBA HSD DE TUKEY
+# prueba post-hoc Tukey 
+tukey <- TukeyHSD(aov_resultado)
+
+print("Resultado completo de Tukey:")
+print(tukey)
+
+# comparaciones significativas (p adj < 0.05)
+print("Comparaciones significativas según Tukey (p adj < 0.05):")
+print(tukey$pais[tukey$pais[, "p adj"] < 0.05, ])
+```
+
+```{r}
+#-----------------------------------------------------------------------------------------------------------------------------
+# PRUEBA POST-HOC ADICIONAL: BONFERRONI
+
+bonf_resultado <- pairwise.t.test(m2$tiempo, m2$pais, p.adjust.method = "bonferroni")
+
+# Mostrar tabla de resultados
+print(bonf_resultado)
+
+# Mostrar solo las comparaciones que sí son significativas
+print("Comparaciones significativas (p < 0.05):")
+print(bonf_resultado$p.value < 0.05)
+```
+
+```{r}
+#-----------------------------------------------------------------------------------------------------------------------------
+# PROCEDIMIENTO POST-HOC CON PRUEBA HSD DE scheffe
+# prueba post-hoc Scheffé
+shefe <- ScheffeTest(aov_resultado, conf.level = 1 - alfa)
+
+print("Resultado completo de Scheffé:")
+print(shefe)
+
+# comparaciones de Scheffé como data.frame
+sheffe_result <- as.data.frame(shefe$pais)
+
+# p < 0.05 (significativas)
+print("Comparaciones significativas según Scheffé (p < 0.05):")
+print(sheffe_result[sheffe_result$pval < 0.05, ])
+```
+
+```{r}
+cat("\nResumen comparaciones significativas:\n")
+cat("- Tukey:\n")
+print(tukey$pais[tukey$pais[, "p adj"] < 0.05, ])
+
+cat("\n- Scheffé:\n")
+print(sheffe_result[sheffe_result$pval < 0.05, ])
+
+cat("\n- Bonferroni (TRUE = significativa):\n")
+print(bonf_resultado$p.value < 0.05)
+```
+
+Es un muy buen indicio para nosotros que, independiente de la severidad del procedimiento, las mismas relaciones Ecuador-Argentina y Uruguay-Ecuador se mantienen como aquellas que si hay que prestar atención como significativas, tal que en ningún momento estas dos relaciones se convierten en falsos-positivos o falsos-negativos.
+
+Podemos también aprovechar de obtener el tamaño de efecto de este fenómeno.
+
+```{r}
+if (!require("effectsize")) install.packages("effectsize")
+library(effectsize)
+
+#se calcula el tamaño de efecto de cohen
+
+eta_squared(aov_resultado)
+omega_squared(aov_resultado)
+```
+
+```{r}
+if (!require("pwr")) install.packages("pwr")
+library(pwr)
+
+#Calcularemos el poder para el caso, sabiendo el tamaño del efecto de cohen
+# como eta² = 0.59
+eta2 <- 0.59
+f <- sqrt(eta2 / (1 - eta2))  # f ≈ 1.20
+#k: número de grupos
+#n: tamaño de muestra por grupo (promedio en este caso)
+pwr.anova.test(k = 3, n = 38, f = 0.74, sig.level = 0.05)
+```
+
+El tamaño de efecto de cohen (f) es 0.74, lo que nos dice que las diferencias encontradas entre los países tienen gran relevancia e importancia.
+
+[Conclusión del análisis:]{.underline}
+
+El análisis ANOVA reveló resultados estadísticamente significativos en los tiempos de resolución de cubos Megaminx entre los países analizados (Ecuador, Uruguay y Argentina).
+
+Las pruebas post hoc realizadas (Tukey HSD, Bonferroni y Scheffé) coinciden en identificar las dos relaciones significativas: Ecuador–Argentina y Ecuador–Uruguay, lo que nos permite identificar que los resultados son consistentes.
+
+El tamaño de efecto de Cohen obtenido (f ≈ 0.74) indica que lo descubierto tiene impacto grande y relevante. El poder estadístico del análisis también es muy alto. Podemos concluir dado los resultados que el país de origen de los participantes sí influye significativamente en su desempeño en la resolución del cubo Megaminx.

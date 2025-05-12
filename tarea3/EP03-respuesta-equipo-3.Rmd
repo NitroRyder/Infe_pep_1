@@ -1,0 +1,303 @@
+---
+title: "EP03: poder estadístico en pruebas con medias"
+date: "2025-04-01"
+output: html_document
+---
+
+
+# Importación de Packages.
+
+```{r setup, include=FALSE}
+
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(ggpubr)
+```
+
+# Enunciado:
+
+En una planta química hay dos máquinas que envasan detergentes industriales en bidones con un volumen de producto que sigue una distribución normal con desviación estándar de 1 litro. La ingeniera a cargo de la planta debe asegurar que los bidones se están llenando con una media de 10 litros. Pero ella tiene la sospecha de que hay desviaciones en esta media, lo que piensa confirmar usando una muestra aleatoria de 100 envases (50 de cada una de las máquinas). También cree que hay diferencia en el cumplimiento del volumen requerido entre la máquina más antigua y la más moderna, que han de andar por el 90% y 96% de los bidones, respectivamente.
+
+#Valores del enunciado:
+
+```{r}
+
+desv_est <- 1
+
+media <- 10
+
+muestra_total <- 100
+
+muestra1 <- 50 # maquina antigua
+
+muestra2 <- 50 # maquina moderna
+```
+
+#Pregunta 1: Si la ingeniera está seguro de que el verdadero volumen medio no puede ser superior a 10 litros y piensa rechazar la hipótesis nula cuando la muestra presente una media menor a 9,8 litros, ¿cuál es la probabilidad de que cometa un error de tipo I? Para responder, generen un gráfico de la distribución muestral de las medias hipotetizada en donde se marque la zona correspondiente a la probabilidad solicitada, para luego, basándose en este gráfico, calcular el área correspondiente. Tome como ejemplo los scripts presentados en la lectura sobre poder estadístico.
+
+```{r}
+# VOLUMEN MEDIO <= 10
+# media < 9,8 -> RECHAZA H0
+# ---------------------------------------
+# 1.-  calcular la probabilidad de cometer un error tipo I
+# 2.-  rechazar la hipótesis nula (H0: mu = 10) cuando en realidad es verdadera.
+# 3.-  rechazar H0 si la media muestral es menor a 9.8 litros.
+# 4.-  Graficar
+# ---------------------------------------
+# Parámetros:
+# Error estándar
+se1 <- desv_est / sqrt(muestra_total)
+# Punto de corte para rechazar H0
+corte <- 9.8
+
+# ---------------------------------------
+# PROBABILIDAD
+# ---------------------------------------
+# probabilidad acumulada hasta 9.8
+# Cálculo de la probabilidad de error tipo I
+prob_error_tipo_I <- pnorm(corte, mean = media, sd = se1, lower.tail = TRUE)
+cat("LA PROBABILIDAD DE COMETER UN ERROR DEL TIPO I ES: \n")
+prob_error_tipo_I
+# ---------------------------------------
+# GRÁFICO
+# ---------------------------------------
+# medias de la muestra para graficar (±4 errores estándar es decir que se1 vea aprox 99% del grafico)
+# Valores para el gráfico
+g_x_limites <- media + c(-4, 4) * se1
+
+# Gráfico base
+g <- ggplot() + xlim(g_x_limites) + 
+  labs(x = "Volumen (litros)", y = "Densidad",
+       title = "Distribución de la media bajo 10 y mayor que 9.8") + 
+  theme_pubr()
+
+# Distribución bajo H0 (media = 10)
+dist_0 <- stat_function(fun = dnorm, geom = "area",
+                        args = list(mean = media, sd = se1),
+                        colour = "steelblue", fill = "steelblue", alpha = 0.3)
+
+# Agregar líneas de referencia
+g1 <- g + dist_0 +
+  geom_vline(xintercept = media, colour = "red", linetype = "dashed") +
+  geom_vline(xintercept = corte, colour = "black", linetype = "dashed")
+
+# Colorear la región de rechazo de H0 (error tipo I)
+g2 <- g1 + 
+  stat_function(fun = dnorm, geom = "area",
+                args = list(mean = media, sd = se1),
+                xlim = c(g_x_limites[1], corte),
+                fill = "steelblue", alpha = 0.7)
+
+# Etiquetas para alfa
+g3 <- g2 + 
+  annotate("text", x = media, y = 3, 
+           label = "Media = 10", color = "red", size = 5, fontface = "bold") +
+  annotate("text", x = corte - 0.1, y = 0.5, 
+           label = expression(alpha), parse = TRUE, color = "black", size = 6)
+
+# Mostrar el gráfico
+print(g3)
+```
+
+Podemos concluir que hay un 2,27% de probabilidad de cometer un error tipo I si se rechaza H0 cuando la media muestral es menor 9,8. Podemos decir que 2,27% es un valor que nos protege contra falsos positivos pero puede que no detectemos patrones que solo veríamos con un alfa más permisivo. que opinan?
+
+
+#Pregunta 2: Si el verdadero volumen medio de los bidones fuera de 9,85 litros, ¿cuál sería la probabilidad de que la ingeniera, que obviamente no conoce este dato, cometa un error de tipo II? Para responder, agregue al gráfico anterior la verdadera distribución muestral de las medias y marquen (con otro color) la zona correspondiente a la probabilidad solicitada, para luego, basándose en este gráfico, calcular el área correspondiente. También hay ejemplos de este procedimiento en la lectura sobre poder estadístico.
+
+Para la resolución de esta pregunta se utilizará la prueba T-Studient debido a que se cumplen las condiciones necesarias, porque la muestra de 100 bidones totales producido por las dos maquinas que envasan detergentes industriales en bidones son independientes la una de la otra, siendo que cada maquina produce 50 bidones, pues son dos maquinas diferentes y porque se menciona que la distribución del volumen de los bidones sigue una distribución normal con una desviación estándar de 1 litro.
+
+Utilizando el valor de error tipo I previamente obtenido de 2,27%.
+
+Las hipótesis a utilizar para esta pregunta serán:
+HO Hipótesis nula: El volumen medio de los bidones es 10 litros.
+
+HA Hipótesis alternativa: El volumen medio de los bidones es diferente de 10 litros.
+
+```{r}
+
+# PROB ERROR TIPO 2
+n <- 50
+d2 <- (9.85-media)/desv_est  # (media de muestra - media teorica) / desv. est.
+
+resultado2 <- pwr.t.test(d=d2, n = n, sig.level = prob_error_tipo_I, type = "two.sample", alternative = "two.sided")
+resultado2
+
+beta <- 1 - resultado2$power
+cat("EL VALOR BETA ES:\n")
+beta
+
+```
+
+Para la resolución de la pregunta se realiza utilización de función "pwr.t.test" debido a que el enunciado presenta dos muestras independientes, siendo estas una provenientes de una maquina y otra nueva.
+
+```{r}
+# Error estándar
+se2 <- desv_est / sqrt(n)
+
+# Valores críticos de la hipótesis nula
+z_critico_inferior <- qnorm(prob_error_tipo_I/2, mean = media, sd = se2, lower.tail = TRUE)
+z_critico_superior <- qnorm(prob_error_tipo_I/2, mean = media, sd = se2, lower.tail = FALSE)
+
+# Gráfico base
+g_x_limites <- media + c(-6.9, 5) * se2
+g <- ggplot() + xlim(g_x_limites) + 
+  labs(x = "Volumen (litros)", y = "Densidad",
+       title = "Distribución muestral de las medias") + 
+  theme_pubr()
+
+# Distribución bajo H0 (media = 10)
+dist_0 <- stat_function(fun = dnorm, geom = "area",
+                        args = list(mean = media, sd = se2),
+                        colour = "steelblue", fill = "steelblue", alpha = 0.1)
+
+# Distribución bajo la media real (media = 9.85)
+dist_v <- stat_function(fun = dnorm, geom = "area",
+                        args = list(mean = 9.85, sd = se2),
+                        colour = "red", fill = "red", alpha = 0.1)
+
+# Agregar líneas de referencia
+g1 <- g + dist_0 + dist_v +
+  geom_vline(xintercept = media, colour = "steelblue") +
+  geom_vline(xintercept = 9.85, colour = "red")
+
+# Colorear las regiones de rechazo de H0
+g2 <- g1 + 
+  stat_function(fun = dnorm, geom = "area",
+                args = list(mean = media, sd = se2),
+                xlim = c(g_x_limites[1], z_critico_inferior),
+                fill = "steelblue", alpha = 0.6) +
+  stat_function(fun = dnorm, geom = "area",
+                args = list(mean = media, sd = se2),
+                xlim = c(z_critico_superior, g_x_limites[2]),
+                fill = "steelblue", alpha = 0.6)
+
+# Agregar la región correspondiente a beta (error tipo II)
+g3 <- g2 + 
+  stat_function(fun = dnorm, geom = "area",
+                args = list(mean = 9.85, sd = se2),
+                xlim = c(z_critico_inferior, z_critico_superior),
+                fill = "green", alpha = 0.4)
+
+# Etiquetas corregidas con parse = TRUE
+g3 <- g3 + 
+  annotate("text", x = 9.85, y = 0.15, 
+           label = expression(beta), parse = TRUE, color = "brown", size = 5, fontface = "bold") +
+  annotate("text", x = media + 0.2, y = 0.15, 
+           label = expression(1 - beta), parse = TRUE, color = "steelblue", size = 5, fontface = "bold")+
+    annotate("text", x = z_critico_inferior - 0.05, y = 0.1, 
+           label = expression(alpha/2), parse = TRUE, color = "black", size = 5) +
+  annotate("text", x = z_critico_superior + 0.05, y = 0.1, 
+           label = expression(alpha/2), parse = TRUE, color = "black", size = 5)
+
+print(g3)
+```
+
+Tras la realización de la operación "pwr.t.test" junto a la utilización de los datos entregados por el enunciado, se puede observar que la probabilidad de que un cometa un error de tipo II, representado por el símbolo β resulta ser 0.9366382. Esto significa que hay un 93.66% de probabilidad de rechazar la diferencia real de 0.15 litros y de no rechazar la hipótesis nula.
+
+
+Respecto al gráfico, es posible observar que el área con un delineado azul corresponde a la hipótesis nula H0 de una media de 10 litros, mientras que la que posee un delineado rojo corresponde a la media verdadera de 9.85 litros, también es posible observar las zonas coloreadas de azul que representan las regiones de rechazo de la hipótesis nula H0 y la zona de color verde que representa la probabilidad de no rechazar la hipótesis nula H0 a pesar de que verdadera media sea 9.85.
+ 
+
+#Pregunta 3: Como no se conoce el verdadero volumen medio, genere un gráfico del poder estadístico con las condiciones anteriores, pero suponiendo que el verdadero volumen medio podría variar de 9,5 a 10 litros. Hay un ejemplo de este tipo de gráfico en la lectura sobre poder estadístico.
+
+Para la generación de un gráfico donde no se conoce el verdadero volumen medio, pero nos hace asumir que el verdadero volumen medio podría variar de 9,5 a 10 litros hay que realizar un gráfico que compare el poder estadístico y el tamaño del efecto.
+
+```{r}
+# RANGO DE VOLUMEN MEDIO = [9,5;10]
+
+# Definir tamaños del efecto
+medias_verdaderas <- seq(9.5,10, 0.01)
+deltas <- medias_verdaderas - media
+deltas_normalizados <- deltas / desv_est
+
+# Definir funcion para calcular el poder de la prueba Z bilat eral y aplicar a los tamaños del efecto.
+
+# Por utlización de la función norm, el valor n será la muestra total que es 100 por parte del enunciado.
+
+f_pzb <- function (x) pwr.norm.test(x, n = muestra_total, sig.level = prob_error_tipo_I,
+                                      alternative = "two.sided" )[["power"]]
+
+poder_bilat <- sapply (deltas_normalizados, f_pzb)
+
+# Graficar estas curvas
+
+datos_anchos <- data.frame(deltas, poder_bilat)
+datos_largos <- datos_anchos |>
+  pivot_longer(-deltas, values_to = "Poder")
+
+
+g3 <- ggline(datos_largos, x = "deltas", y = "Poder",
+              color =  "steelblue1",
+              plot_type = "l", numeric.x.axis = TRUE)
+
+g3 <- g3 + labs(x = "Delta [s]")
+g3 <- g3 + labs(title = "Relacion entre poder y tamaño del efecto")
+print (g3)
+
+```
+
+Gracias al gráfico obtenido es posible confirmar que la prueba tiene una alta capacidad para detectar diferencias de grandes volúmenes medios, pero a su vez es menos efectiva para deferencias mas pequeñas.
+
+
+#Pregunta 4: Considerando un volumen medio de 10 litros, ¿cuántos bidones deberían revisarse para conseguir un poder estadístico de 0,75 y un nivel de significación de 0,05?
+
+Se utiliza la prueba Z de diferencia de medias para muestras independientes dado que se cumplen las condiciones necesarias: se menciona que la distribución del volumen de los bidones sigue una distribución normal con una desviación estándar de 1 litro, la cantidad de muestras cumple con ser mayor que 30 y se solicita comparar la media muestral con una media teórica (ambas conocidas).
+
+Dado el uso que tiene la prueba Z, a continuación se presentan las hipótesis:
+
+Hipótesis nula: La media del volumen de los bidones es igual a 10 litros, es decir, no se presenta una diferencia significativa en la media de los volúmenes. mu = 10
+
+Hipótesis alternativa: La media del volumen de los bidones es distinta a 10 litros, se presenta una diferencia significativa en la media de los volúmenes. mu != 10
+
+A continuación se realiza la recopilación de los datos y, posteriormente, se utiliza la prueba mencionada.
+
+```{r}
+# n?
+media_verdadera <- 9.85
+media_teo <- 10
+sigma <- 1
+poder <- 0.75
+alfa <- 0.05
+d <- (media_verdadera - media_teo)/sigma
+potencia <- pwr.norm.test(d = d, sig.level = alfa, power = poder, alternative = "two.sided")
+
+print(potencia)
+```
+
+Después de realizar la prueba Z para la diferencia de medias, el resultado indica que se necesita una muestra de aproximadamente 309 bidones para ambas máquinas, es decir, al rededor de 154 bidones para cada una de las máquinas, para detectar si existe una diferencia significativa entre las medias. Esto bajo las siguientes condiciones: poder estadístico de 0.75, un nivel de significancia de 0.05 y asumiendo que la media verdadera es de 9.85 litros y la media teórica de 10 litros.
+
+#Pregunta 5: ¿Alcanzaría esta muestra para detectar la diferencia que la ingeniera sospecha que existe entre las dos máquinas de la planta con al menos las mismas probabilidades de cometer errores?
+
+Se utiliza la prueba de diferencia de dos proporciones para muestras que son de igual tamaño, dado que se requiere comparar el porcentaje de éxito de las dos máquinas, donde la máquina antigua tiene un 90% de éxito y la nueva un 96% y, además, las muestras son se dos grupos independientes.
+
+Dado el uso de la prueba de proporciones se presentan las hipótesis:
+
+Hipótesis nula: las proporciones de éxito de las dos máquinas son iguales, no se presenta una diferencia significativa entre las proporciones de éxito de la máquina antigua y nueva. p1 = p2
+
+Hipótesis alternativa: las proporciones de éxito de las máquinas son diferentes, se presenta una diferencia significativa entre las proporciones de éxito de la máquina antigua y nueva. p1 != p2
+
+A continuación se realiza la recopilación de los datos y, posteriormente, se realiza la prueba mencionada.
+
+```{r}
+#Pregunta 5
+
+#n?
+p1 <- 0.90  # proporción maquina antigua
+p2 <- 0.96  # proporción maquina nueva
+alfa <- 0.05 
+poder <- 0.75
+
+# h de Cohen
+h <- ES.h(p1, p2)
+
+# diferencia de dos proporciones
+proporcion <- pwr.2p.test(h = h, sig.level = alfa, power = poder, alternative = "two.sided")
+
+print(proporcion)
+```
+
+Después de la realización de la prueba de dos proporciones, se obtuvo que el tamaño de la muestra necesario para cada máquina debe ser de al rededor de 239 bidones, es decir, una muestra total de 478 bidones.
+
+Esto indica que la muestra obtenida en la pregunta 4 de 154 para cada máquina, es decir, 309 bidones en total, no sería suficiente para lograr detectar la diferencia de proporciones de éxito entre las dos máquinas bajo las condicioens de un poder igual a 0.75 y un nivel de significancia de 0.05.

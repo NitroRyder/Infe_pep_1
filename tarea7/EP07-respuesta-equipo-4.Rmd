@@ -1,0 +1,354 @@
+---
+title: "EP07-respuesta-equipo-4"
+date: "2025-04-30"
+output: html_document
+---
+
+```{r setup, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(pwr)
+library(ggpubr)
+library(dplyr)
+library(tidyr)
+library(scales)
+library(gridExtra)
+library(DescTools)
+library(ez)
+library(nlme)
+library(emmeans)
+```
+
+# Enunciado
+En el trabajo de título de una estudiante del DIINF se reportan tiempos de ejecución (en milisegundos) y la cercanía con la solución óptima (en por ciento) de la mejor solución encontrada con tres versiones de un algoritmo genético para resolver instancias del problema del vendedor viajero disponibles en repositorios públicos. Ahora debe enfrentar el análisis de estos datos, por que está solicitando ayuda de las y los estudiantes de Estadística Inferencial.
+
+```{r}
+datos <- read.csv("EP07 Datos.csv")
+head(datos)
+```
+
+## Pregunta 1
+Observando los datos, la memorista sospecha que hay diferencias significativas en el tiempo de ejecución entre las versiones B y C del algoritmo cuando las instancias tienen 65 o más nodos. ¿Los datos respaldan la intuición de la memorista? Para responder, filtren los datos para tener las instancias con 65 o más nodos y seleccionen las columnas de los tiempos de ejecución de las versiones B y C en formato ancho. Usando como semilla el valor 73, obtenga muestras aleatorias independientes de 24 tiempos registrados por la versión B y 20 tiempos registrados por la versión C del algoritmo. Realicen un análisis estadístico pertinente (enunciar hipótesis, revisar condiciones, seleccionar pruebas ómnibus y post-hoc según corresponda) para responder la pregunta planteada, utilizando pruebas no paramétricas de ser necesario.
+
+## Respuesta Pregunta 1
+
+[**Hipótesis:**]{.underline}
+
+-   [H0]{.underline}: **Hay** diferencias significativas en el tiempo de ejecución entre las versiones B y C.
+-   [HA]{.underline}: **No hay** diferencias significativas en el tiempo de ejecución entre las versiones B y C.
+
+```{r}
+#----------------------------------------------------------------------------------
+# NIVEL DE SIGNIFICANCIA:
+alfa <- 0.05
+#----------------------------------------------------------------------------------
+# FILTRADO DE VALORES:
+
+datos_b <- datos |> filter(n.nodos >= 65) |> select(tiempo.B) |> 
+  sample_n(24, replace = FALSE, set.seed(73)) |> 
+  mutate(tiempo.B = as.numeric(tiempo.B))
+
+datos_c <- datos |> filter(n.nodos >= 65) |> select(tiempo.C) |>
+  sample_n(20, replace = FALSE, set.seed(73)) |> 
+  mutate(tiempo.C = as.numeric(tiempo.C))
+
+# PASAR A DATOS LARGO
+
+largo_b <- datos_b |> 
+  pivot_longer(cols = everything(), names_to = "Version", values_to = "Tiempo") |> 
+  mutate(Instancia = rep(1:24, each = 1))
+
+largo_c <- datos_c |>
+  pivot_longer(cols = everything(), names_to = "Version", values_to = "Tiempo") |> 
+  mutate(Instancia = rep(1:20, each = 1))
+
+# CONCATENAR LARGOS
+ej_1_largo <- rbind(largo_b, largo_c)
+#----------------------------------------------------------------------------------
+# VERIFICACIÓN DE LA NORMALIDAD
+shapiro.test(largo_b$Tiempo)
+shapiro.test(largo_c$Tiempo)
+```
+
+```{r}
+#----------------------------------------------------------------------------------
+#GRAFICO Q-Q
+g <- ggqqplot(ej_1_largo, x = "Tiempo", color = "Version", palette = "jco") +
+     facet_wrap(~ Version, scales = "free") +
+     rremove("x.ticks") + rremove("x.text") +
+     rremove("y.ticks") + rremove("y.text") +
+     rremove("axis.title")
+
+g
+```
+
+Como es posible observar, los valores p obtenidos 0.04505 y 0.04706 resultan ser menores al nivel de significancia 0.05 y los graficos Q-Q presentan un caso el cual se encuentra fuera del rango, lo que indica que **no** se cumple la condición de normalidad para las dos muestras. Por lo que es necesario realizar una prueba no paramétrica.
+
+[**Análisis de prueba no parametrica correspondiente:**]{.underline}\
+Tras el filtrado de información solicitado, es momento de evaluar que tipo de prueba que se va a utilizar para responder a la pregunta.
+
+-   [Cantidad de muestras en comparación]{.underline}:\
+    Las muestras a comparar para este caso, son dos, lo que indica que hay que hacer utilización de **Pruebas no parametricas con una o dos muestras numéricas**.
+
+-   [Análisis de grupos de información]{.underline}:
+
+    Como cada instancia posee dos tiempos de ejecución para dos versiones de un algoritmo genético, es posible afirmar que los dos grupos **si** están relacionados. En otras palabras son **dependientes**.
+
+-   [Conclusión de método de resolución:]{.underline}\
+    Como hay que trabajar con **Pruebas no parametricas con más de dos muestras numéricas** para grupos relacionados, es que la prueba que hay que realizar es la de *Rangos con signo de Wilcoxon*.
+
+```{r}
+#PRUEBA DE WILCOXON
+wilcox.test(largo_b$Tiempo, largo_c$Tiempo, paired = FALSE, alternative = "two.sided", conf.int = TRUE)
+```
+
+
+## Pregunta 2
+La memorista también sospecha que, al comparar las mismas instancias de iguales características, las mejores soluciones encontradas por las versiones A y B tienen rendimientos distintos. ¿Estará en lo cierto?
+Para responder, filtren los datos para tener las instancias con 65 o más nodos y seleccionen las columnas con el mejor rendimiento de las versiones A y B en formato ancho. Usando como semilla el valor 13, obtengan una muestra aleatoria de 22
+
+
+## Respuesta Pregunta 2
+
+Dado a que se nos pide verificar si las mejores soluciones encontradas por las versiones A y B tienen rendimientos distintos, podemos identificar cuales serán nuestras hipótesis a docimar, las cuales son:
+
+- **Hipótesis nula (H0):** No hay diferencia significativa entre los rendimientos de las versiones A y B.
+- **Hipótesis alternativa (H1):** Hay una diferencia significativa entre los rendimientos de las versiones A y B.
+
+Una vez tenemos las hipotesis a docimar procederemos a analizar los datos para determinar cúal es la mejor prueba para evaluar estas mismas. En este caso dado a que se quieren comparar dos rendimientos para una misma instancia, podemos notar que se trata de una prueba pareada, por lo que es posible usar una prueba t-student para muestras pareadas, pero antes de esto es necesario verificar la normalidad de los datos para determinar si se cumplen los requisitos para esta prueba.
+
+Para esta tarea primero filtramos los datos para tener las instancias con 65 o más nodos y seleccionamos las columnas con el mejor rendimiento de las versiones A y B en formato ancho. Usando como semilla el valor 13, obteniendo una muestra aleatoria de 22.
+
+```{r}
+set.seed(13)
+datos_filtrados <- datos |>
+  filter(n.nodos >= 65) |>
+  select(instancia, mejor.A, mejor.B) |>
+  sample_n(22)
+head(datos_filtrados)
+
+mejoresA <- datos_filtrados$mejor.A
+mejoresB <- datos_filtrados$mejor.B
+```
+
+Una vez tenemos los datos filtrados procederemos a realizar la prueba de normalidad de shapiro-wilk y un graficar un diagrama de cajas para determinar si los datos siguen una distribución normal.
+
+```{r}
+# SHAPIRO-WILK
+shapiroA <- shapiro.test(mejoresA)
+shapiroB <- shapiro.test(mejoresB)
+shapiroA
+shapiroB
+
+datos_largo <- datos_filtrados %>%
+  pivot_longer(cols = c(mejor.A, mejor.B), names_to = "version", values_to = "rendimiento")
+
+# GRAFICO Q-Q
+
+g <- ggqqplot(datos_largo, x = "rendimiento", color = "version", palette = "jco") +
+     facet_wrap(~ version, scales = "free") +
+     rremove("x.ticks") + rremove("x.text") +
+     rremove("y.ticks") + rremove("y.text") +
+     rremove("axis.title")
+
+g
+```
+
+Puesto a que los datos presentan una cierta asímetria y se pueden observar valores atípicos, además de que las pruebas de shapito-wilk nos indican valores p-value de 0.01024 para A y 0.03547 para B, se concluye que los datos no siguen una distribución normal y los graficos Q-Q precentan areas fuera del area, por lo que no se puede usar la prueba t-student para muestras pareadas. Es por esto que se opta por usar la prueba de rangos con signo de wilcoxon, la cual no requiere que los datos sigan una distribución normal, pero antes de realizarla es necesario verificar si se sumplen los requisitos para esta prueba, es decir, que los datos sean independientes y que la escala con la que se mide sea a lo menos ordinal. En este caso, los datos son independientes ya que cada instancia es única y no se repite en la muestra, en cuanto a la escala de medición, los datos son medidos en porcentaje, lo que cumple con el requisito de ser al menos ordinal.
+
+Al cumplir con los requisitos para la prueba de rangos con signo de wilcoxon, procederemos a realizar la prueba para determinar si hay una diferencia significativa entre los rendimientos de las versiones A y B.
+
+```{r}
+wilcox_test <- wilcox.test(mejoresA, mejoresB, paired = TRUE, alternative = "two.sided")
+wilcox_test
+```
+Puesto que el p-value de la prueba realizada da como resultado 0.0003047, lo que es menor al nivel de significancia de 0.05, se rechaza la hipótesis nula (H0) en favor de la alternativa (H1), por lo que se concluye que la memoriasta tenía razón, pues existe una diferencia significativa entre los rendimientos de las versiones A y B en instancias con 65 nodos o más.
+
+
+## Pregunta 3
+La memorista sospecha que hay diferencias significativas en el tiempo de ejecución entre las versiones del algoritmo cuando las instancias de prueba tienen 50 o más nodos. ¿Los datos respaldan la intuición de la memorista?
+Para responder, filtren los datos para tener las instancias con 50 o más nodos y seleccionen las columnas con los tiempos de ejecución registrados (en formato ancho). Usando como semilla el valor 31, obtengan muestras aleatorias independientes de 15, 14 y 13 tiempos registrados por las versiones A, B y C, respectivamente. Realicen un análisis estadístico pertinente (enunciar hipótesis, revisar condiciones, seleccionar pruebas ómnibus y post-hoc según corresponda) para responder la pregunta planteada, utilizando pruebas no paramétricas de ser necesario.
+
+
+## Respuesta Pregunta 3
+Para responder esta pregunta se debe filtrar el conjunto de datos para obtener las instancias con 50 o más nodos y seleccionar las columnas con los tiempos de ejecución registrados (en formato ancho). Y luego pasar los datos a formato largo para poder trabajar con ellos.
+
+```{r}
+datos_filtrados <- datos %>%
+  filter(n.nodos >= 50) %>%
+  select(instancia, tiempo.A, tiempo.B, tiempo.C)
+
+tamaño_A <- 15
+tamaño_B <- 14
+tamaño_C <- 13
+
+tamaño_total <- tamaño_A + tamaño_B + tamaño_C
+
+set.seed(31)
+
+
+i <- sample(1:nrow(datos_filtrados), tamaño_total)
+seleccion <- datos_filtrados[i, ]
+
+
+muestra_A <- seleccion[["tiempo.A"]][1:tamaño_A]
+muestra_B <- seleccion[["tiempo.B"]][(tamaño_A + 1):(tamaño_A + tamaño_B)]
+muestra_C <- seleccion[["tiempo.C"]][(tamaño_A + tamaño_B + 1):(tamaño_total)]
+
+datos_largo <- data.frame(instancia = seleccion[["instancia"]], 
+                          tiempo = c(muestra_A, muestra_B, muestra_C), 
+                          algoritmo = rep(c("A", "B", "C"), times = c(tamaño_A, tamaño_B, tamaño_C)))
+
+datos_largo$algoritmo <- factor(datos_largo$algoritmo)
+datos_largo$instancia <- factor(datos_largo$instancia)
+
+head(datos_largo)
+```
+
+Hpótesis a contrastar:
+
+- **Hipótesis nula (H0):** No hay diferencias significativas en el tiempo de ejecución entre las versiones A, B y C del algoritmo cuando las instancias de prueba tienen 50 o más nodos.
+
+- **Hipótesis alternativa (H1):** Hay diferencias significativas en almenos uno de los tiempos de ejecución entre las versiones A, B y C del algoritmo cuando las instancias de prueba tienen 50 o más nodos.
+
+A continuación se verificará la normalidad de los datos para seleccionar una prueba adecuada:
+
+```{r}
+# Verificación de la normalidad
+shapiro_A <- shapiro.test(muestra_A)
+shapiro_B <- shapiro.test(muestra_B)
+shapiro_C <- shapiro.test(muestra_C)
+
+shapiro_A
+shapiro_B
+shapiro_C
+
+# Gráfico Q-Q
+g <- ggqqplot(datos_largo, x = "tiempo", color = "algoritmo", palette = "jco") +
+     facet_wrap(~ algoritmo, scales = "free") +
+     rremove("x.ticks") + rremove("x.text") +
+     rremove("y.ticks") + rremove("y.text") +
+     rremove("axis.title")
+g
+```
+
+Dadoa que los valores p son menores al nivel de significancia 0.05, no se cumple normalidad.
+
+Se comienza verificando las condiciones para el uso de la prueba Kruskal-Wallis:
+
+1. La variable dependiente (tiempo de ejecución) es continua.
+
+2. La observaciones son independientes entre sí.
+
+3. La variable independiente (versión del algoritmo) es categórica y tiene tres niveles (A, B y C).
+
+Ya que verificamos las condiciones, aplicamos la prueba de Kruskal-Wallis para comparar las tres muestras independientes.
+
+```{r}
+prueba <- kruskal.test(tiempo ~ algoritmo, data = datos_largo)
+
+prueba
+```
+
+Considerando un nivel de significancia de 0.05 y un valor p de 0.038, se rechaza la hipótesis nula, lo que indica que hay diferencias significativas en el tiempo de ejecución entre al menos dos de las versiones del algoritmo.
+
+Considerando esta conclusión es necesario aplicar un procedimiento post-hoc para identificar que algoritmos presentan diferencias significativas entre sí, en este caso se usara el método de Benjamini-Hochberg (BH) para ajustar los valores p.
+
+```{r}
+post_hoc <- pairwise.wilcox.test(datos_largo$tiempo, datos_largo$algoritmo, p.adjust.method = "BH", paired = FALSE)
+
+post_hoc
+```
+Se evidencia que no hay diferencia significativa (p > 0.05) entre el algoritmo A y C, y los algoritmos A y B. Sin embargo hay diferencia significativa  (p < 0.05) entre el algoritmo B y C, lo que indica que el algoritmo B tiene un tiempo de ejecución significativamente mayor que el algoritmo C.
+
+
+## Pregunta 4
+La memorista también sospecha que, al comparar las mismas instancias con iguales características, las mejores soluciones encontradas por las diferentes versiones del algoritmo tienen rendimientos distintos. ¿Estará en lo cierto? Para responder, filtren los datos para tener las instancias con 50 o más nodos y seleccionen las columnas con los mejores rendimientos registrados. Usando como semilla el valor 73, obtengan una muestra aleatoria de 22 instancias. Lleven los datos a formato largo y utilicen una prueba no paramétrica apropiada para analizar los datos obtenidos. Realicen un análisis estadístico pertinente (enunciar hipótesis, revisar condiciones, seleccionar pruebas ómnibus y post-hoc según corresponda) para responder la pregunta planteada, utilizando pruebas no paramétricas de ser necesario.
+
+## Respuesta Pregunta 4
+
+[**Hipótesis:**]{.underline}
+
+-   [H0]{.underline}: Las mejores soluciones encontradas por las diferentes versiones del algoritmo tienen rendimientos **iguales**.
+-   [HA]{.underline}: Las mejores soluciones encontradas por las diferentes versiones del algoritmo tienen al menos un rendimientos **distinto**.
+
+```{r}
+#----------------------------------------------------------------------------------
+# NIVEL DE SIGNIFICANCIA:
+alfa <- 0.01
+#----------------------------------------------------------------------------------
+# FILTRADO DE VALORES:
+ej_4 <- datos |> filter(n.nodos >= 50) |> 
+  select(mejor.A, mejor.B, mejor.C) |> 
+  sample_n(22, replace = FALSE, set.seed(73)) |> 
+  mutate(mejor.A = as.numeric(mejor.A), mejor.B = as.numeric(mejor.B), mejor.C = as.numeric(mejor.C))
+#----------------------------------------------------------------------------------
+# PASADO A FORMATO LARGO:
+ej_4_largo <- ej_4 |> 
+  pivot_longer(cols = everything(), names_to = "Version", values_to = "Rendimiento") |> 
+  mutate(Instancia = rep(1:22, each = 3))
+
+# NOMALIDAD, shapiro
+
+shapiro_A <- shapiro.test(ej_4$mejor.A)
+shapiro_B <- shapiro.test(ej_4$mejor.B)
+shapiro_C <- shapiro.test(ej_4$mejor.C)
+
+shapiro_A
+shapiro_B
+shapiro_C
+
+# GRAFICO Q-Q
+g <- ggqqplot(ej_4_largo, x = "Rendimiento", color = "Version", palette = "jco") +
+     facet_wrap(~ Version, scales = "free") +
+     rremove("x.ticks") + rremove("x.text") +
+     rremove("y.ticks") + rremove("y.text") +
+     rremove("axis.title")
+g
+```
+
+Como no se cumple que los grafico se encuentren dentro del area coloreada. No se cumple normalidad, entonces.
+
+[**Análisis de prueba no parametrica correspondiente:**]{.underline}**\
+**Tras el filtrado de información solicitado, es momento de evaluar que tipo de prueba que se va a utilizar para responder a la pregunta.
+
+-   [Cantidad de muestras en comparación]{.underline}:\
+    Las muestras a comparar para este caso, son tres, lo que indica que hay que hacer utilización de **Pruebas no parametricas con más de dos muestras numéricas**.
+
+-   [Análisis de grupos de información]{.underline}:
+
+    Como cada instancia posee tres porcentajes de "mejores rendimientos registrados" para tres versiones de un algoritmo genético, es posible afirmar que los tres grupos **si** están relacionados. En otras palabras son **dependientes**.
+
+-   [Conclusión de método de resolución:]{.underline}\
+    Como hay que trabajar con **Pruebas no parametricas con más de dos muestras numéricas** para grupos relacionados, es que la prueba que hay que realizar es la de *Friedman*.
+
+```{r}
+#----------------------------------------------------------------------------------
+# PRUEBA NO PARAMETRICA PARA 3 MUESTRAS -> FRIEDMAN, pues al menos esta pide 3 muestras || 
+# PRUEBA DE FRIEDMAN
+cat("RESULTADOS PRUEBA OMNIBUS:\n")
+cat("----------------------------------------------------\n")
+prueba <- friedman.test(Rendimiento ~ Version | Instancia, data = ej_4_largo)
+prueba
+```
+
+Como es posible de observar, el valor p obtenido 0.001253 es menor al nivel de significancia de 0.05, lo que indica que existe al menos un rendimientos **distinto** dentro de las mejores soluciones encontradas por las diferentes versiones del algoritmo. Es por lo previamente mencionado es que en necesario realizar una prueba *Post-hoc* de *Friedman* con el objetivo de conocer cual o cuales son los rendimientos que presentan esta diferencia.
+
+```{r}
+#----------------------------------------------------------------------------------
+# PRUEBA POST HOC DE FRIEDMAN
+if(prueba$p.value < alfa){
+  cat("RESULTADOS PRUEBA POST HOC DE FRIEDMAN:\n")
+  cat("----------------------------------------------------\n")
+  posthoc <- pairwise.wilcox.test(ej_4_largo$Rendimiento, ej_4_largo$Version, p.adjust.method = "holm", paired = TRUE, exact = FALSE)
+  posthoc
+}else{
+  cat("NO SE RECHAZA HIPOTESIS NULA, POR ENDE NO HAY DIFERENCIAS SIGNIFICATIVAS ENTRE LAS VERSIONES.\n")
+}
+```
+
+Gracias a este resultado es posible observar que:
+
+-   mejor.A presenta una diferencia con respecto a mejor.B, pues presenta un valor menor a 0.05
+-   mejor.A no presenta diferencia con respecto a mejor.C pues posee un valor mayor a 0.05.
+-   mejor.B no presenta diferencia con respecto a mejor.B pues posee un valor mayor a 0.05.

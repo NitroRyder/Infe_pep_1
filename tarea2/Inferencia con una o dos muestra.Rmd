@@ -1,0 +1,381 @@
+---
+title: "EP02-respuesta-equipo-2"
+author: "Andre Cosio-Jazmin Melo-Benjamín Valenzuela"
+date: "2025-03-25"
+output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(ggpubr)
+```
+
+El Comité Olímpico de una gran potencia del atletismo está estudiando el programa de entrenamiento de varones para la competencia de 100 metros planos, por lo que ha recopilado datos de una muestra aleatoria de atletas
+
+- Id	      Identificador único para cada atleta.
+- Raza      Raza del atleta (categórica: Blanca, Negra, Oriental).
+- Previo	  Mejor tiempo registrado por el atleta antes de ingresar al programa de entrenamiento (numérica, en segundos).
+- Posterior	Mejor tiempo registrado por el atleta después de los primeros 6 meses del programa de entrenamiento (numérica, en segundos).
+
+# Pregunta 1: El Comité Olímpico cree que el mejor tiempo medio de los atletas de raza oriental antes de ingresar al programa de entrenamiento era inferior a 19,8 segundos. ¿Soportan los datos esta afirmación?
+
+```{r}
+# LECTURA DE DOCUMENTO:
+datos2 <- read.csv2("EP02 Datos(1).csv")
+
+# FILTRO DE ATLETAS ORIENTALES:
+atletas_orientales <- datos2 |> filter(Raza == "Oriental")
+```
+
+Comencemos verificando las hipótesis que son posibles de formular:
+
+-   H0: Tiempo medio de los atletas de raza oriental antes de ingresar
+    al programa de entrenamiento es igual a 19.8 segundos.
+-   HA: Tiempo medio de los atletas de raza oriental antes de ingresar
+    al programa de entrenamiento es menor a 19.8 segundos.
+
+Para saber que tipo de prueba es necesario verificar que condiciones se
+presentan en el problema:
+
+-   Podemos decir que que las observaciones son independientes puesto a
+    que el enunciado del proyecto hace mención que la información
+    obtenida mediante un muestreo aleatorio de atletas y la muestra a
+    trabajar de atletas orientales corresponde al 33,33333% de atletas
+    totales, lo cual representa un valor al 10% de las observaciones
+    entregadas.
+
+```{r}
+# NÚMERO DE ATLETAS ORIENTALES
+n_atletas <- nrow(datos2)
+
+cat("CANTIDAD DE ATLETAS TOTALES = ", n_atletas, "\n")
+
+# NÚMERO DE ATLETAS ORIENTALES
+n_atletas_o <- nrow(atletas_orientales)
+
+cat("CANTIDAD DE ATLETAS ORIENTALES = ", n_atletas_o, "\n")
+
+porcentaje <- (n_atletas_o*100)/n_atletas
+
+cat("PORCENTAJE DE ATLETAS ORIENTALES = ", porcentaje, "%")
+```
+
+-   Podemos ver que dentro del gráfico Q-Q,los datos poseen un
+    comportamiento esperado a una distribución normal, puesto a que no
+    se alejan mucho el uno de al otro.
+
+```{r}
+q_q <- ggqqplot(atletas_orientales, x = "Previo", color = "steelblue", title = "Gráfico Q-Q muestra v/s distribución normal")
+print(q_q)
+```
+
+-   Podemos ver que la cantidad de observaciones de ATLETAS ORIENTALES
+    es 27, un valor menor a 30 y no es presentado un valor de
+    "desviación estándar de la población".
+
+```{r}
+cat("CANTIDAD DE ATLETAS ORIENTALES = ", n_atletas_o)
+```
+
+-   De igual forma, ni el enunciado ni la tabla de información presenta
+    un valor que represente la desviación estándar de la población, es
+    por lo anteriormente mencionado que el problema no es posible de
+    solucionar por medio de la Prueba-Z, pero si lo es por medio de la
+    Prueba-T-Studient para una sola muestra.
+
+Tras lo previamente mencionado aplicando el procedimiento para la
+realización de la Prueba-T-Studient, asumiendo que tenemos un nivel de
+significación de 95% obtenemos que:
+
+```{r}
+
+alfa <- 0.05 # 95% de significación
+
+grados_livertad <- n_atletas_o - 1
+
+tabla_pervios_o <- atletas_orientales |> select(Previo)
+
+media <- mean(tabla_pervios_o$Previo)
+desv_est <- sd(tabla_pervios_o$Previo)
+error_est <- desv_est/sqrt(n_atletas_o)
+
+t <- (media - 19.8)/error_est
+
+valor_p <- pt(t, df = grados_livertad, lower.tail = TRUE)
+
+t_crit <- qt(alfa, df = grados_livertad, lower.tail = FALSE)
+#---------------------------------------------------------------------------------------
+
+resultado2 <- t.test(tabla_pervios_o$Previo, mu = 19.8, alternative = "less", conf.level = 1 - alfa)
+
+print(resultado2)
+
+```
+
+#Comparación, valor p contra alfa:
+
+```{r}
+if(resultado2$p.value > alfa){
+  print(paste("El valor p =", resultado2$p.value, "es mayor que el valor propuesto de significación =", alfa))
+}else{
+  print(paste("El valor p =", resultado2$p.value, "es menor que el valor propuesto de significación =", alfa))
+}
+```
+
+# Resultado:
+
+Teniendo un nivel de significancia del 0.05, el valor p obtenido en la
+ejecución de la Prueba-T-Studient para una muestra resulta ser 0.1666,
+teniendo como resultado, que el valor p es mayor al valor alfa
+presentado, es por lo previamente mencionado que no hay suficiente evidencia estadística para rechazar la
+hipótesis nula H0. Por ende, no se puede afirmar que el tiempo medio de los atletas de raza oriental antes de ingresar al programa de entrenamiento es menor a 19.8 segundos.
+
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+# Pregunta 2: ¿Sugieren los datos que la mejor marca de los atletas de raza negra se reduce en promedio más de 1,9 segundos tras el entrenamiento?
+
+```{r}
+# FILTRO DE ATLETAS Negros:
+atletas_negras <- datos2 |> filter(Raza == "Negra")
+```
+
+Comencemos verificando las hipótesis que son posibles de formular:
+
+-   H0: El tiempo promedio de los atletas de raza Negra tras el programa de entrenamiento es igual a 1.9 segundos.
+-   HA: El tiempo promedio de los atletas de raza Negra tras el programa de entrenamiento es menor a 1.9 segundos.
+
+Para saber que tipo de prueba es necesario verificar que condiciones se
+presentan en el problema:
+
+-   Podemos decir que las observaciones son independientes puesto a
+    que el enunciado del proyecto hace mención que la información
+    obtenida mediante un muestreo aleatorio de atletas y la muestra a
+    trabajar de atletas orientales corresponde al 34,5679% de atletas
+    totales, lo cual representa un valor al 10% de las observaciones
+    entregadas.
+
+```{r}
+# NÚMERO DE ATLETAS
+n_atletas <- nrow(datos2)
+
+cat("CANTIDAD DE ATLETAS TOTALES = ", n_atletas, "\n")
+
+# NÚMERO DE ATLETAS NEGROS
+n_atletas_o <- nrow(atletas_negras)
+
+cat("CANTIDAD DE ATLETAS NEGROS = ", n_atletas_o, "\n")
+
+porcentaje <- (n_atletas_o*100)/n_atletas
+
+cat("PORCENTAJE DE ATLETAS NEGROS = ", porcentaje, "%")
+```
+
+-   Podemos ver que dentro del gráfico Q-Q,los datos poseen un
+    comportamiento esperado a una distribución normal, puesto a que no
+    se alejan mucho el uno de al otro.
+
+```{r}
+q_q <- ggqqplot(atletas_negras, x = "Previo", color = "steelblue", title = "Gráfico Q-Q muestra v/s distribución normal")
+print(q_q)
+```
+
+-   Podemos ver que la cantidad de observaciones de ATLETAS NEGROS
+    es 28, un valor menor a 30 y no es presentado un valor de
+    "desviación estándar de la población".
+
+```{r}
+cat("CANTIDAD DE ATLETAS NEGROS = ", n_atletas_o)
+```
+
+-   De igual forma, ni el enunciado ni la tabla de información presenta
+    un valor que represente la desviación estándar de la población, es
+    por lo anteriormente mencionado que el problema no es posible de
+    solucionar por medio de la Prueba-Z, pero si lo es por medio de la
+    Prueba-T-Studient para una sola muestra.
+
+Tras lo previamente mencionado aplicando el procedimiento para la
+realización de la Prueba-T-Studient, asumiendo que tenemos un nivel de
+significación de 95% obtenemos que:
+
+```{r}
+
+alfa <- 0.05 # 95% de significación
+
+tabla_postpre_o <- atletas_negras$Previo - atletas_negras$Posterior
+
+resultado2 <- t.test(tabla_postpre_o, mu = 1.9, alternative = "greater", conf.level = 1 - alfa)
+
+resultado3 <- t.test(x = atletas_negras$Previo, y= atletas_negras$Posterior, mu = 1.9, alternative = "greater", conf.level = 1 - alfa, paired = TRUE)
+
+
+print(resultado2)
+print(resultado3)
+```
+
+#Comparación, valor p contra alfa:
+
+```{r cars}
+if(resultado2$p.value > alfa){
+  print(paste("El valor p =", resultado2$p.value, "es mayor que el valor propuesto de significación =", alfa))
+}else{
+  print(paste("El valor p =", resultado2$p.value, "es menor que el valor propuesto de significación =", alfa))
+}
+```
+
+# Resultado:
+
+Teniendo un valor de significación del 95%, el valor obtenido en la ejecución de la Prueba-T-Studient para una muestra permite aceptar la hipótesis nula puesto que hay la suficiente información para aceptar que la media de la mejor marca de la raza negra se reduce tras el entrenamiento de la muestra es menor o igual a 1,9 aunque para poder corroborar por completo esto se necesitaría mas muestra debido a que da un p muy alto de 0.9999 y un t negativo.
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+# Pregunta 3: ¿Es posible afirmar que, en promedio, los atletas de raza negra superan a los de raza oriental por 2 segundos después del entrenamiento?
+
+Comencemos verificando las hipótesis que son posibles de formular:
+
+-   H0: El tiempo promedio de los atletas de raza Negra después del programa de entrenamiento es igual a los de la raza oriental, m0 = m1.
+-   HA: El tiempo promedio de los atletas de raza Negra después del programa de entrenamiento es mayor a los de la raza oriental, m0 > m1.
+
+Para saber que tipo de prueba es necesario verificar que condiciones se
+presentan en el problema:
+
+-   Podemos decir que las observaciones son independientes puesto a
+    que el enunciado del proyecto hace mención que la información
+    obtenida mediante un muestreo aleatorio de atletas y la muestra a
+    trabajar de atletas orientales corresponde al 34,5679% y a los atletas de raza negra corresponde a 34.5679% de atletas totales, lo cual representa un valor al 10% de las observaciones entregadas.
+
+```{r}
+datosoriental <- datos2 |> filter(Raza == "Oriental")
+datosnegra <- datos2 |> filter(Raza == "Negra")
+
+conteonegra <- nrow(datosnegra)
+
+porcentaje2 <- (conteonegra*100)/n_atletas
+
+cat("PORCENTAJE ATLETAS NEGROS = ", porcentaje2)
+
+```
+-   Podemos ver que al aplicar la prueba Shapiro-Wilk,los datos poseen un comportamiento esperado a una distribución normal debido a que su p es superior a 0.05 en ambos.
+
+
+```{r}
+
+posterior_negra <- datosnegra$Posterior
+posterior_oriental <- datosoriental$Posterior
+
+conteooriental <- nrow(datosoriental)
+conteonegra <- nrow(datosnegra)
+
+#saco la normal
+normalidad_negra <- shapiro.test(posterior_negra)
+print(normalidad_negra)
+normalidad_oriental <- shapiro.test(posterior_oriental)
+print(normalidad_oriental)
+
+```
+-   De igual forma, ni el enunciado ni la tabla de información presenta
+    un valor que represente la desviación estándar de la población, es
+    por lo anteriormente mencionado que el problema no es posible de
+    solucionar por medio de la Prueba-Z, pero si lo es por medio de la
+    Prueba-T-Studient para dos muestras.
+
+Tras lo previamente mencionado aplicando el procedimiento para la
+realización de la Prueba-T-Studient, asumiendo que tenemos un nivel de
+significación de 95% obtenemos que:
+
+```{r}
+
+#ambas muestras cumplen con la distribución aproximada a una normal
+alfa = 0.05
+
+# Prueba t para dos muestras independientes
+prueba <- t.test(x = posterior_negra, y = posterior_oriental, paired = FALSE, alternative = "greater", conf.level = 1 - alfa)
+
+print(prueba)
+# Se calcula la diferencia entre las medias
+diferencia <- prueba[["estimate"]][1] - prueba[["estimate"]][2]
+cat("Diferencia de las medias =", diferencia)
+
+```
+
+# Resultado:
+
+Teniendo un valor de significación del 95%, el valor obtenido en la
+ejecución de la Prueba-T-Studient para dos muestras permite aceptar la
+hipótesis nula puesto que hay la suficiente información para aceptar
+que la raza negra después del programa de entrenamiento es igual a los de la raza oriental, m0 = m1 debido a que da un p = 1, pero se necesitaría mas muestra en este debido al p muy alto que posee y un t negativo, aunque como se ve en la diferencia de las medias la raza oriental supera por 2.136012 a los de la raza negra.
+
+Comencemos verificando las hipótesis que son posibles de formular:
+
+-   H0: Cantidad de atletas de raza negra = Cantidad de atletas de raza oriental por 2 segundos después del entrenamiento.
+-   HA: Cantidad de atletas de raza negra  Cantidad de atletas de raza oriental por 2 segundos después del entrenamiento.
+
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------
+
+# Pregunta 4: ¿Será cierto que hay menos atletas de taza oriental que redujeron sus mejores marcas en al menos 5,5 segundos que atletas de raza blanca que lo hicieron en al menos 3 segundos?
+
+# --- CARGO PAQUETES ---
+```{r}
+# --- CONVERSIÓN A NUMÉRICO ---
+datos2$Previo <- as.numeric(gsub(",", ".", datos2$Previo))
+datos2$Posterior <- as.numeric(gsub(",", ".", datos2$Posterior))
+
+
+# --- Filtrado ---
+datosoriental <- datos2 %>% filter(Raza == "Oriental")
+datosblanca <- datos2 %>% filter(Raza == "Blanca")
+
+# --- FILTRO POR CONDICIÓN ---
+orientalMejorado <- datosoriental %>% filter((Previo - Posterior) >= 5.5)
+blancaMejorado <- datosblanca %>% filter((Previo - Posterior) >= 3)
+
+# --- Contamos los exitos y los totales ---
+orientalExito <- nrow(orientalMejorado)
+blancaExito <- nrow(blancaMejorado)
+
+orientalTotal <- nrow(datosoriental)
+blancaTotal <- nrow(datosblanca)
+```
+
+Proporción Exito orientales 1 de 27 
+
+Proporción Exito blancos 11 de 26
+
+```{r}
+# ---listas para prop.test ---
+listaMejorado <- numeric(2)
+listaMejorado[1] <- orientalExito
+listaMejorado[2] <- blancaExito
+
+listaN <- numeric(2)
+listaN[1] <- orientalTotal
+listaN[2] <- blancaTotal
+
+# --- PRUEBA DE PROPORCIONES ---
+
+# Construimos la tabla de contingencia
+tabla <- matrix(c(1, 26, 11, 15), nrow = 2, byrow = TRUE,
+                dimnames = list(Raza = c("Oriental", "Blanca"),
+                                Resultado = c("Éxito", "Fracaso")))
+
+# Prueba exacta de Fisher (hipótesis alternativa: menor)
+resultado_fisher <- fisher.test(tabla, alternative = "less")
+
+# Mostrar tabla y resultado
+print(tabla)
+print(resultado_fisher)
+```
+# Evaluo p-value segun la condicion
+
+
+Al evaluarlo con nivel de confianza de 0.05, podemos y siendo p-value = 0.0008181, podemos decir que:
+
+Se rechaza H0: hay evidencia de que la proporción de mejora oriental es menor que la de blanca.

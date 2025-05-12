@@ -1,0 +1,342 @@
+---
+title: 'EP04: inferencia no paramétrica con frecuencias'
+output: html_document
+date: "2025-04-07"
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+```{r setup, include=FALSE}
+
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(ggpubr)
+```
+
+------------------------------------------------------------------------
+
+#Pregunta 1: Se realiza un estudio sobre las preferencias de consumo de dos tipos de chocolate, “Chocolate Blanco” y “Chocolate Negro”, entre dos grupos etarios distintos: personas adultas y personas menores de edad (niñas, niños y adolescentes).
+\* Después de entrevistar a un total de 15 adultos y 9 menores de edad, se encontró que 7 menores prefieren el chocolate blanco, mientras que 10 personas adultas prefieren el chocolate negro.
+¿El tipo de chocolate preferido está influenciado por el grupo etario de las y los consumidores?
+
+------------------------------------------------------------------------
+
+[¿Qué se pide determinar?]{.underline}
+
+-   Saber si el tipo de chocolate preferido está influenciado por el grupo etario de las y los consumidores.
+
+[Solución propuesta:]{.underline}
+
+-   Como se desea comparar las preferencias de consumo de dos tipos de chocolate entre variables dicotómicas entre personas adultas y menores de edad (niñas, niños y adolescentes), se propone el uso de la PRUEBA EXACTA DE FISHER, puesto que se presenta una tabla de contingencia 2x2, donde las personas adultas y las menores de edad son variables independientes.
+
+[Hipótesis a trabajar:]{.underline}
+
+-   H0: El tipo de chocolate preferido no está influenciado por el grupo etario de las y los consumidores.
+
+-   HA: El tipo de chocolate preferido si está influenciado por el grupo etario de las y los consumidores.
+
+```{r}
+# ENTREVISTADOS TOTALES = 24
+adultos <- 15
+menores <- 9
+
+# DISTRIBUCIÓN DE CONSUMOS
+c_blanco_menores <- 7
+c_negro_menores <- 2
+
+c_blanco_adultos <- 5
+c_negro_adultos <- 10
+
+alfa <- 0.05
+
+# ES TASA DE FISHER
+```
+
+[Construcción de tabla:]{.underline}
+
+```{r}
+# ---------------------------------------------------------------
+# Construir los datos y la tabla de contingencia
+Resultado <- c(rep("Menores", c_blanco_menores), 
+               rep("Menores", c_negro_menores), 
+               rep("Adultos", c_blanco_adultos), 
+               rep("Adultos", c_negro_adultos))
+
+Chocolates <- c(rep("Chocolate_Blanco", c_blanco_menores),
+                rep("Chocolate_Negro", c_negro_menores),
+                rep("Chocolate_Blanco", c_blanco_adultos),
+                rep("Chocolate_Negro", c_negro_adultos))
+
+Resultado <- factor(Resultado, levels = c("Menores", "Adultos") )
+datos <- data.frame(Resultado, Chocolates)
+tabla <- xtabs (~., datos)
+print (tabla)
+# ---------------------------------------------------------------
+# Aplicar la prueba exacta de Fisher a la tabla de contingencia
+prueba_1 <- fisher.test (tabla)
+cat ("\n")
+cat ("Prueba exacta de Fisher usando la tabla de contingencia\n")
+cat("-----------------------------------------------------------------------\n")
+print (prueba_1)
+
+# Aplicar la prueba exacta de Fisher directamente a las muestras
+prueba_2 <- fisher.test (Chocolates, Resultado)
+cat ("Prueba exacta de Fisher usando las muestras: \n")
+cat("-----------------------------------------------------------------------\n")
+print (prueba_2)
+```
+
+Como el valor p obtenido 0.08938 es mayor al valor de nivel de significancia 0.05, no se rechaza la hipótesis nula HO.
+Por ende, no hay evidencia estadística significativa para afirmar que el tipo de chocolate preferido si está influenciado por el grupo etario de las y los consumidores.
+
+------------------------------------------------------------------------
+
+#Pregunta 2: Se llevó a cabo una encuesta para investigar si hay una distribución homogénea de pasatiempos favoritos entre dos grupos de personas: hombres y mujeres.
+Se seleccionaron aleatoriamente 30 personas de cada grupo y se les preguntó sobre sus pasatiempos favoritos, obteniéndose que entre los hombres 12 prefieren actividades relacionadas con la lectura, 11 con el deporte y 7 con música; mientras que entre las mujeres 15 se inclinan por actividades relacionadas con la música, 7 con la lectura y 8 con deportes.
+
+¿Existe evidencia suficiente para concluir que la distribución de los pasatiempos favoritos es la misma entre hombres y mujeres?
+
+```{r}
+# ---------------------------------------------------------------
+# ¿Qué se pide determinar?
+# Saber si la distribución de pasatiempos favoritos es homogénea 
+# entre hombres y mujeres, tal que las proporciones para los pasatiempos favoritos son las mismas para los dos grupos.
+
+# Solución propuesta:
+# Como se desea comparar las proporciones de diferentes categorías de pasatiempos entre 
+# variables dicótomas independientes (hombres y mujeres), se propone el uso de la
+# PRUEBA NO PARAMÉTRICA DE HOMOGENEIDAD usando el test chi-cuadrado ya que esta prueba 
+# es usada para datos categóricos y sus frecuencias.
+
+# ---------------------------------------------------------------
+# Crear la tabla de contingencia con los datos observados
+
+hombres <- c(12, 11, 7)       # Lectura, Deporte, Música
+mujeres <- c(7, 8, 15)        # Lectura, Deporte, Música
+
+tabla <- as.table(rbind(hombres, mujeres))
+
+dimnames(tabla) <- list(
+  sexo = c("Hombres", "Mujeres"),
+  pasatiempos = c("Lectura", "Deporte", "Música")
+)
+
+# ---------------------------------------------------------------
+# Mostrar tabla de contingencia
+
+cat("Tabla de contingencia (frecuencias observadas):\n")
+print(tabla)
+
+# ---------------------------------------------------------------
+# Calcular frecuencias esperadas
+
+sumas_filas <- apply(tabla, 1, sum)
+sumas_columnas <- apply(tabla, 2, sum)
+suma_total <- sum(tabla)
+
+esperadas <- outer(sumas_filas, sumas_columnas, "*") / suma_total
+esperadas <- round(esperadas, 2)
+
+cat("\nFrecuencias esperadas si no hay diferencia entre grupos:\n")
+print(esperadas)
+
+# ---------------------------------------------------------------
+# Verificar condición de validez para usar chi-cuadrado: frecuencias esperadas >= 5
+
+cat("\n¿Hay celdas con frecuencias esperadas < 5?:\n")
+print(esperadas < 5)
+cat("Cantidad de celdas con frecuencia esperada < 5:\n")
+print(sum(esperadas < 5))
+
+# ---------------------------------------------------------------
+# Aplicar la prueba chi-cuadrado de homogeneidad
+
+prueba <- chisq.test(tabla)
+
+cat("\nResultado de la prueba chi-cuadrado:\n")
+print(prueba)
+
+# ---------------------------------------------------------------
+# Interpretación de resultados:
+# El valor p es mayor a 0.05, es 0.09544, por lo que no se puede rechazar la hipótesis nula.
+# No hay evidencia suficiente para aseverar que hombres y mujeres prefieren pasatiempos de forma diferente.
+```
+
+------------------------------------------------------------------------
+
+#Pregunta 3: Una investigación reciente en un laboratorio de Kanto se enfocó en analizar el efecto de una nueva técnica de entrenamiento en el rendimiento del ataque inicial de criaturas Pokémon.
+Para ello, se seleccionaron aleatoriamente 20 criaturas y registró su poder de ataque inicial.
+Luego, a este grupo se le sometió al entrenamiento nuevo y, al finalizar, se les registró nuevamente los niveles de ataque inicial.
+Los resultados se presentan a continuación:
+
+-   2 criaturas tenían un nivel bajo de ataque antes y después del entrenamiento.
+
+-   15 criaturas con nivel bajo de ataque inicial mostraron un aumento en su ataque después del entrenamiento.
+
+-   2 criaturas mantuvieron un alto nivel de ataque antes y después del entrenamiento.
+
+-   la otra criatura mostró un nivel alto de ataque inicial, pero se redujo después del entrenamiento.
+
+¿Hay evidencia de que el nuevo entrenamiento tiene un efecto significativo en el rendimiento del ataque inicial de las criaturas Pokémon?
+
+[¿Qué se pide determinar?]{.underline}
+
+-   Saber si hay evidencia de que el nuevo entrenamiento tiene un efecto significativo en el rendimiento del ataque inicial de las criaturas Pokémon.
+
+[Solución propuesta:]{.underline}
+
+-   Como se desea evidenciar si el entrenamiento tiene un efecto significativo en el rendimiento del ataque inicial de las criaturas Pokémon, usando variables dicotómicas que expresan si el nivel de ataque es alto o bajo, realizando una comparación para determinar si hay un cambio significativo en las proporciones observadas entre dos situaciones, presentando una tabla de contingencia 2x2, se propone el uso de la PRUEBA DE MCNEMRAR.
+
+[Hipótesis a trabajar:]{.underline}
+
+-   H0: No hay evidencia de que el nuevo entrenamiento tiene un efecto significativo en el rendimiento del ataque inicial de las criaturas Pokémon.
+
+-   HA: Si hay evidencia de que el nuevo entrenamiento tiene un efecto significativo en el rendimiento del ataque inicial de las criaturas Pokémon.
+
+```{r}
+muestra_total3 <- 20
+
+bajo_antes_despues <- 2
+
+bajo_antes_mejor_despues <- 15
+
+alto_antes_bajo_despues <- 2
+
+alto_antes_despues <- 1
+
+alfa <- 0.05
+
+# MCNEMAR POR CAMBIO DE TIEMPO y regla de 2x2
+```
+
+Es importante observar que como las variables que han presentado cambios a través del tiempo, sean estas las variables bajo_antes_mejor_despues = 15 y alto_antes_bajo_despues = 2, su suma no supera el valor 25, por ende, es necesario realizar un factor de corrección de la continuidad.
+
+[Construcción de tabla:]{.underline}
+
+```{r}
+# Construir la tabla de contingencia
+pokemon <- seq (1:muestra_total3)
+modelo_1 <- c(rep("BAJO(antes)", 17), 
+              rep("ALTO(antes)", 3))
+
+modelo_2 <- c(rep("BAJO(despues)", 2), 
+              rep("ALTO(despues)", 15), 
+              rep("BAJO(despues)", 2),
+              rep("ALTO(despues)", 1))
+datos <- data.frame(pokemon, modelo_2, modelo_1)
+tabla <- table(modelo_2, modelo_1)
+
+# Mostrar la tabla
+cat ("Tabla de contingencia: \n")
+cat("-----------------------------------------------------------------------\n")
+print (tabla)
+
+# Aplicar la prueba de McNemar a la tabla y mostrarla
+prueba_1 <- mcnemar.test(tabla, correct = TRUE) # COMO correct = TRUE, ESTOY APLICANDO FACTOR DE CORRECCIÓN.
+cat ("\nPrueba de McNemar sobre la tabla de contingencia: \n")
+cat("-----------------------------------------------------------------------\n")
+print (prueba_1)
+
+# Pero también se puede aplicar directamente a las muestras
+prueba_2 <- mcnemar.test(modelo_2, modelo_1, correct = TRUE) # COMO correct = TRUE, ESTOY APLICANDO FACTOR DE CORRECCIÓN.
+cat ("Prueba de McNemar sobre las muestras : \n")
+cat("-----------------------------------------------------------------------\n")
+print (prueba_2)
+```
+
+Como el valor p obtenido 0.003609 es menor al valor alfa 0.05, por ende, rechazamos la hipótesis nula HO a favor de la hipótesis alternativa HA, por ende, se concluye que hay evidencia estadísticamente significativa para afirmar que el nuevo entrenamiento tiene un efecto significativo en el rendimiento del ataque inicial de las criaturas Pokémon.
+
+------------------------------------------------------------------------
+
+#Pregunta 4: Una agencia de marketing desea determinar si hay una diferencia significativa en la efectividad de tres estrategias publicitarias utilizadas para promocionar un nuevo producto.
+Para ello, se ha recopilado información de personas que fueron expuestas a las tres estrategias publicitarias, registrando si mostraron una aceptación (A) o rechazo (R) a cada una de ellas.
+¿Qué puede concluir la agencia de marketing sobre la efectividad de las estrategias publicitarias para promover el nuevo producto?
+Indicación: obtenga la muestra de 50 personas a partir del archivo “EP04 Datos.csv” que se encuentra en el directorio compartido, usando la semilla 321.
+Considere un nivel de significación α=0,05.
+
+Se utilizará la prueba Q de Cochran, ya que es la más adecuada para analizar las diferencias globales en proporciones de las respuestas emparejadas, para esto se verificaron las 4 condiciones necesarias:
+
+1.  La variable de respuesta es dicotómica: se utiliza como respuesta la aceptación o rechazo de la estrategia publicitaria, la que puede ser escrita como 1 o 0, respectivamente.
+
+2.  Variable independiente es categórica: existen tres estrategias diferentes, estrategia_1, estrategia_2 y estrategia_3, por lo tanto, se cumple.
+
+3.  Las observaciones son independientes entre sí: cada uno de los individuos representa una observación diferente, por lo que las respuestas de uno no influyen en las del otro.
+
+4.  Tamaño de la muestra es suficientemente grande: según Glen, se debe cumplir nb \* bt \>= 24, en este caso obtenemos 50 \* 3 = 150, donde 150 \>= 24 observaciones.
+    Se cumple.
+
+Dado que se cumplieron las condiciones necesarias, a continuación, se presentan las hipótesis del problema:
+
+Hipótesis nula Ho: Las proporciones de éxito son iguales para todas las estrategias publicitarias
+
+Hipótesis alternativa Ha: A lo menos una de las estrategias tiene una proporción de éxito diferente a las demás.
+
+```{r}
+#librerías 
+if(!requireNamespace('tidyverse',quietly = TRUE)) {
+  install.packages('tidyverse')
+}
+library(tidyverse)
+
+if(!requireNamespace('RVAideMemoire',quietly = TRUE)) {
+  install.packages('RVAideMemoire')
+}
+library(RVAideMemoire)
+
+
+# Leer los datos
+dato <- read.csv2("EP04 Datos.csv")
+alfa <- 0.05
+minimo_tamaño <- 24
+
+# Muestra de 50 datos alearios con una semilla 321
+set.seed(321)
+muestra_aleatoria <- dato %>% sample_n(50)
+
+
+#Tamaño de muestra
+N <- nrow(muestra_aleatoria[,-1]) * ncol(muestra_aleatoria[,-1])
+
+# Mostrar tamaño de la muestra
+
+cat(" Tamaño de la muestra: " ,N, " ")
+cat( ifelse ( N > minimo_tamaño , " > ", " <= "))
+cat(minimo_tamaño , "\n")
+
+#Hay que convertir los valores A y R en valores binarios, 1 <- Aceptación, 0 <- Rechazo
+
+muestra_binaria <- muestra_aleatoria %>%
+  mutate(estrategia_1 = ifelse(estrategia_1 == "A", 1,0))
+
+muestra_binaria <- muestra_binaria %>%
+  mutate(estrategia_2 = ifelse(estrategia_2 == "A", 1,0))
+
+muestra_binaria <- muestra_binaria %>%
+  mutate(estrategia_3 = ifelse(estrategia_3 == "A", 1,0))
+
+
+datos_largos <- muestra_binaria %>%
+  pivot_longer(cols = starts_with("estrategia"),
+               names_to = "estrategia",
+               values_to = "resultado")
+
+datos_largos[["estrategia"]] <- factor(datos_largos[["estrategia"]]) 
+
+# Aplicar prueba de Cochran Q
+cochran_test <- cochran.qtest(resultado ~ estrategia | id, data = datos_largos, alpha = alfa)
+
+# Mostrar el resultado de la prueba
+cat(" \n Resultado de la prueba Q de Cochran :\n ")
+cat(" - - - -- - - - - - -- - - -- - - - - - - - - -- - - - - - -- - -\n " )
+
+cochran_test
+```
+
+Luego de la realización de la prueba, se obtiene que el valor p = 0.1938 mayor que el nivel de significancia alfa = 0.05, por lo cual no se rechaza la hipótesis nula.
+Esto significa que no hay evidencia suficiente para afirmar que existe una diferencia significativa en la efectividad de las estrategias publicitarias evaluadas.
+En otras palabras, la tasa de aceptación de los consumidores hacia el producto no varía significativamente entre las diferentes estrategias, a pesar de que las estrategias 2 y 3 muestran una mayor aceptación que la estrategia 1, la diferencia observada no cumple con que sea lo suficientemente grande como para ser considerada significativa.
+
+Por lo tanto, en base a los resultados, la agencia puede concluir que las tres estrategias tienen una efectividad similar y no se justifica elegir una por sobre la otra.
