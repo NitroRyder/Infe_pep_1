@@ -1,0 +1,461 @@
+---
+title: "EJEMPLOS_LECTURAS"
+author: "EJEMPLO"
+date: "2025-05-11"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(ggpubr)
+library(DescTools)
+library(ez)
+library(emmeans)
+library(nlme)
+library ( effsize )
+library(pwr)
+```
+
+# EJ. CLASE 4 [PODER ESTADÍSTICO]
+
+Considera el siguiente escenario: La nueva concesión de una de las cafeterías del campus recibió la recomendación de que oriente su decoración para atraer alumnas, porque estas gastan más que los alumnos. Antes de tomar esta decisión, planean observar 30 alumnos y 30 alumnas, elegidos al azar, al minuto de pagar en caja y calcular el monto promedio gastado por cada grupo. Luego van a aplicar una prueba t para la docimar la igualdad o diferencia de estas medias con un nivel de significación de 0,05.
+
+## 7.4 ¿Qué potencia tiene la prueba si se quiere detectar un efecto mediano?
+
+1)  MUESTRAS INDEPENDIENTES: FUERON EJEGIDOS AL AZAR
+
+```{r}
+# Definimos los parámetros
+nh <- 30 # tamaño de la muestra de hombres
+nm <- 30 # tamaño de la muestras de mujeres
+n <- 60 # tamaño total de la muestra
+
+alpha <- 0.05 # nivel de significación
+d <- 0.5 # tamaño del efecto (efecto mediano)
+
+potencia <- pwr.t.test(n = n, d = d, sig.level = alpha, type = "two.sample", alternative = "two.sided")$power
+
+potencia
+```
+
+## 7.5 ¿Qué tamaño deben tener dos muestras con el mismo número de observaciones si se apunta a tener 80 % de potencia?
+
+```{r}
+potencia2 <- pwr.t.test(n = NULL, d = d, sig.level = alpha, power = 0.8, type = "two.sample", alternative = "two.sided")
+
+potencia2$n
+```
+
+El tamaño total de la muestra tiene que ser de 64 personas.
+
+## 7.6 ¿Cuánto varía este tamaño si la hipótesis alternativa se cambia a que el gasto medio de las alumnas es mayor al de los alumnos?
+
+```{r}
+potencia3 <- pwr.t.test(n = NULL, d = d, sig.level = alpha, power = 0.8, type = "two.sample", alternative = "greater")
+
+potencia3$n
+```
+
+```{r}
+
+```
+
+El tamaño total de la muestra tiene que ser de 51 personas.
+
+# EJ. CLASE 5 [INFERENCIA NO PARAMÉTRICA CON PROPORCIONES] (CLASE DE LAS TABLAS DE PROPORCIONAL)
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+# EJ. CLASE 6 [ANOVA PARA MUESTRAS INDEPENDIENTES]
+
+El conjunto de datos chickwts , disponible en R, registra el peso de 71 pollitos a las seis semanas de nacidos y el tipo de alimento que cada pollito recibió. Para este conjunto de datos:
+
+## (a) Verifica si se cumplen las condiciones para efectuar un procedimiento ANOVA de una vía para muestras independientes.
+
+### 1) La escala con la que se mide la variable tiene propiedades de una escala de intervalos iguales.
+
+Para este caso, solo trabajamos con el peso de los pollitos, los cuales son medidos en gramos, lo que es una escala de intervalos que también es una razón que posee un cero absoluto.
+
+### 2) Las k muestras son independientes y deben ser obtenidas de forma aleatoria.
+
+Para este caso, como cada pollito es alimentado con un solo tipo de comida para luego que evalúen su peso, eso significa que las muestras son independientes pues no existe dependencia entre las observaciones de los diferentes grupos.
+
+### 3) La variable dependiente tiene una distribución normal en cada una de las k poblaciones.
+
+```{r}
+library ( DescTools )
+library ( ez )
+library ( ggpubr )
+library ( tidyverse )
+#-------------------------------------------------------------------------
+# Cargar el conjunto de datos
+datos <- data("chickwts")
+#-------------------------------------------------------------------------
+# REALIZAR SHAPIRO WILK PARA CADA TIPO DE ALIMENTO
+shapiro_test <- chickwts |>
+  group_by(feed) |>
+  summarise(shapiro = shapiro.test(weight)$p.value)
+
+shapiro_test
+#-------------------------------------------------------------------------
+# GRAFICO Q-Q
+g <- ggqqplot(chickwts, x = "weight", color = "feed", palette = "jco") +
+              facet_wrap(~ feed, scales = "free") +
+              rremove("x.ticks") + rremove("x.text") +
+              rremove("y.ticks") + rremove("y.text") +
+              rremove("axis.title")
+g
+#-------------------------------------------------------------------------
+```
+
+### 4) Si las muestras provienen de mas de una población, estas tienen igual varianza.
+
+Para este caso, es necesario ver que exista homogeneidad en las varianzas, en otra palabras comprobar si la razón entre la máxima y mínima varianza muestral de los grupos no sea superior a 1,5.
+
+```{r}
+varianza <- aggregate(weight ~ feed, data = chickwts, FUN = var)
+
+# EXTRAEMOS LA RAZÓN
+razon_max_min <- max(varianza$weight) / min(varianza$weight)
+razon_max_min
+```
+## \* RESULTADO 6.a
+Como se puede observar, la razón entre la máxima y mínima de la varianza muestral de los grupos obtenido es 2.823201, el cual es superior a 1,5. Lo que significa que no se cumple con la condición de homogeneidad. ESTO NO AFECTA MUCHO, PUES POSEEMOS UNA MUESTRA DE GRAN TAMAÑO.
+
+#### CASO CRITICO:
+
+COMO PODEMOS VER, LOS GRAFICOS Q-Q NO SE AJUSTAN A UNA LINEA RECTA, LO QUE INDICA QUE NO CUMPLEN CON LA NORMALIDAD POR ENDE ES NECESARIO REALIZAR UNA prueba no paramétrica como Kruskal-Wallis.
+
+```{r}
+caso_kruskal <- kruskal.test(weight ~ feed, data = chickwts)
+cat (" \nResultados de la prueba ómnibus\n " )
+cat (" -------------------------------" )
+caso_kruskal
+
+if(caso_kruskal$p.value < 0.05){
+  post_hoc <- pairwise.wilcox.test (chickwts$weight, chickwts$feed, p.adjust.method = "BH")
+  
+  cat ("\nResultados del an álisis post - hoc \n " )
+  cat (" --------------------------------" )
+  print (post_hoc)
+}
+```
+
+## (b) Sin considerar el resultado anterior, efectúa el procedmiento ANOVA de una vía para muestras independientes a fin de determinar si existen diferencias en el peso de los pollitos de acuerdo al tipo de alimento recibido.
+
+Hipótesis:
+
+-   H0: No existen diferencias en el peso de los pollitos de acuerdo al tipo de alimento recibido.
+-   HA: existe por lo menos una diferencia en el peso de los pollitos de acuerdo al tipo de alimento recibido. Para resolver esta pregunta, es necesario utilizar la función aov() con la información del conjunto de datos chickwts.
+
+```{r}
+anova_1 <- aov(weight ~ feed, data = chickwts)
+
+summary(anova_1)
+```
+
+## \* RESULTADO 6.b
+
+Como es posible observar, el valor p 5.94e-10 obtenido es menor a un nivel de significación de 0.05, lo que significa que se rechaza la hipótesis nula H0. Lo que indica que si existen diferencias en el peso de los pollitos de acuerdo al tipo de alimento recibido.
+
+## (c) En caso de identificar que existen diferencias significativas, lleva a cabo los análisis post-hoc y determina qué tipos de alimento presentan dichas diferencias. Compara los resultados obtenidos con los diferentes métodos.
+
+```{r}
+# Efectuar un procedimiento post - hoc de Tukey
+if(5.94e-10 < 0.05) {
+  post_hoc <- TukeyHSD(anova_1)
+  
+  cat ("Resultados del an álisis post - hoc \n " )
+  cat (" --------------------------------\n" )
+  print (post_hoc)
+}
+```
+
+## \* RESULTADO 6.c
+
+Teniendo en cuenta que se realiza una comparación con un nivel de significación de 0.05.
+
+Dentro de la prueba obtenida es posible corroborar entre cuales alimentos existen diferencias significativas respecto al peso de los pollitos se observa lo siguiente:
+
+El tipo de comida casein presenta el mayor peso promedio debido a que en todas las comparaciones se encontró en el segundo valor, donde obtuvo solo diferencias negativas. El tipo de comida horsebean presenta el menor peso promedio debido a que en todas las comparaciones en las que estuvo, la diferencia favorecía a otro tipo de alimento. El tipo de comida sunflower está en segunda posición en términos de peso promedio, mostrando diferencia significativa respecto a meatmeal y horsebean. El tipo de comida soybean posee diferencia significativa respecto a horsebean. El tipo de comida linseed y meatmeal no presentan diferencia entre si, ni contra otros lo que significa que presentan efectos similares en los pollitos.
+
+```{r}
+
+```
+
+# EJ. CLASE 7 [ANOVA PARA MUESTRAS CORRELACIONADAS]
+
+¿Existen diferencias significativas en los promedios de calificaciones de los estudiantes en las asignaturas Física I,Física II y Electromagnetismo?
+
+En esta pregunta se considera la variable dependiente como la calificación final del ramo, las medidas repetidas vendrían siendo cada asignatura, ya que cada estudiante tiene una calificación para cada unade las 3 asignaturas mencionadas, por lo que se repite la medición bajo distintas condiciones.
+
+### Para las hipótesis se tiene lo siguiente:
+
+-   H0: En promedio, no hay diferencia en los promedios obtenidos por los estudiantes al cursar cada asignatura. p1 = p2 = HE
+
+-   HA: La media de las diferencias en los promediosobtenidos por los estudiantes al cursar cada asignatura es diferentepara al menos un par de los ramos cursados.
+
+### 1) La escala con la que se mide la variable tiene propiedades de una escala de intervalos iguales.
+
+Poseen intervalos iguales.
+
+### 2) Las k muestras son independientes y deben ser obtenidas de forma aleatoria.
+
+Son independientes, se obtuvieron de forma aleatoria.
+
+### 3) La variable dependiente tiene una distribución normal en cada una de las k poblaciones.
+
+```{r}
+Instancia <- factor(1:16)
+Fisical <- c(5.0, 4.8, 5.5, 4.9, 5.2, 4.6, 5.1, 4.7, 5.0, 4.8, 5.3, 4.9, 5.4, 4.8, 5.0, 5.1)
+Fisica2 <- c(5.1, 5.0, 5.2, 5.0, 5.3, 4.9, 5.1, 5.0, 5.1, 5.0, 5.4, 5.1, 5.4, 5.0, 5.2, 5.2)
+Electro <- c(5.4, 5.1, 5.5, 5.2, 5.4, 5.0, 5.3, 5.1, 5.2, 5.3, 5.5, 5.3, 5.6, 5.2, 5.4, 5.5)
+alfa <- 0.05
+
+# CONSTRUIR TABLA DE DATOS LARGO PARA 17 VALORES
+dato_ancho <- data.frame (Instancia, Fisical, Fisica2, Electro)
+
+dato_largo <- dato_ancho |> pivot_longer(-Instancia,
+                                         names_to = "Asignatura",
+                                         values_to = "Nota") |>
+  mutate (Asignatura = factor (Asignatura))
+
+# PRUEBA DE SHAPIRO-WILK
+shapiro_test <- dato_largo |>
+  group_by(Asignatura) |>
+  summarise(shapiro = shapiro.test(Nota)$p.value)
+shapiro_test
+
+# GRAFICO Q-Q
+g <- ggqqplot(dato_largo, x = "Nota", color = "Asignatura", palette = "jco") +
+              facet_wrap(~ Asignatura, scales = "free") +
+              rremove("x.ticks") + rremove("x.text") +
+              rremove("y.ticks") + rremove("y.text") +
+              rremove("axis.title")
+g
+```
+
+Los valores p obtenidos son mayores a 0.05 y los gráficos Q-Q se aproximan a la normal y se encuentran dentro del área.
+
+### 4) La matriz de varianzas-covarianzas es esférica
+
+```{r}
+# VALOR P DE MAUCHLY
+mauchly_test <- ezANOVA(data = dato_largo,
+                          dv = Nota,
+                          wid = Instancia,
+                          within = Asignatura,
+                          detailed = TRUE)
+# MAUCHLY
+mauchly_test$`Mauchly's Test for Sphericity`
+```
+
+Para la prueba de esfericidad de Mauchly se obtuvo un valor p de 0.0639458, el cual también es mayor al valor del nivel de significancia de 0.05; por ende, no se rechaza la hipótesis nula de esfericidad y no es necesario realizar correcciones que ajusten los grados de libertad. Es por esto ultimo que se ignora el apartado Sphericity Corrections.
+
+### 5) Realización de la prueba ANOVA con la función ezANOVA() para medias repetidas;
+
+```{r}
+ezanova <- ezANOVA(data = dato_largo,
+                    dv = Nota,
+                    wid = Instancia,
+                    within = Asignatura)
+print(ezanova)
+```
+
+### 6) POST-HOC
+
+```{r}
+# Efectuar un procedimiento post - hoc de tukey
+mixto <- lme(Nota ~ Asignatura, random = ~1|Instancia, data = dato_largo)
+tukey <- emmeans(mixto, ~ Asignatura)
+tukey <- contrast(tukey, method = "pairwise", adjust = "tukey")
+tukey
+```
+
+## \* RESULTADO 7
+
+Los estudiantes obtuvieron notas significativamente más altas en Electromagnetismo en comparación a Fisica1 y Fisica2 siendo en ambas comparaciones p = 0.0001. Fisica2 presenta mayor rendimiento que Fisica1 por poseer una diferencia significativa con un p = 0.0012. Conclusión:
+
+Gracias a esta información es posible confirmar que se rechaza la hipótesis nula H0 en favor de que si existe por lo menos una diferencia entre las notas obtenidas en las asignaturas.
+
+```{r}
+
+```
+
+# EJ. CLASE 8 [METODOS CLASICOS]
+
+## 1) Transformación de datos
+
+```{r}
+
+```
+
+## 2) Pruebas no paramétricas con una y dos muestras numéricas
+
+El conjunto ChickWeight del paquete datasets contiene los resultados de un experimento del efecto de 4 tipos de dietas en el crecimiento temprano de pollitos. Verifica si las dietas 1 y 2 producen crecimientos similares. No olvides verificar si se cumplen las condiciones de la prueba que estás aplicando.
+
+### a) VARIABLES INFEPENDIENTES O DEPENDIENTES:
+
+Para esta pregunta necesario tener en cuenta que como solicita verificar si las dietas 1 y 2 producen crecimientos similares, se trabajará con Pruebas no paramétricas con dos muestras paramétricas.
+
+### b) Tengo desviación estandard de la población?:
+
+No, por ende, realzar la prueba de Shapiro-Wilk para determinar si los datos son normales. - Si hay normalidad, realizar la prueba t de Student para dos muestras independientes. - Si no hay normalidad, realizar la prueba de suma de rangos de Wilcoxon.
+
+Hipótesis:
+
+-   H0 = No hay diferencia significativa en el crecimiento de los pollitos entre las dietas 1 y 2(es decir, los crecimientos son similares).
+-   HA = Hay una diferencia significativa en el crecimiento de los pollitos entre las dietas 1 y 2 (es decir, los crecimientos no son similares).
+
+```{r}
+# Cargar el conjunto de datos
+data(ChickWeight)
+
+alfa <- 0.05
+
+# Filtrar los datos para las dietas 1 y 2
+dietas <- ChickWeight |> filter(Diet %in% c(1, 2))
+
+# FILTRAR POR LOS PESOS DE CADA POLLITO
+final_pesos <- ChickWeight |>
+  filter(Diet %in% c(1, 2))|>
+  group_by(Chick, Diet) |>
+  summarise(peso_final = max(weight), .groups = "drop")
+
+
+# Realizar la prueba de normalidad
+shapiro <- final_pesos |>
+  group_by(Diet) |>
+  summarise(shapiro = shapiro.test(peso_final)$p.value)
+
+shapiro
+
+# GRAFICO Q-Q
+g <- ggqqplot(final_pesos, x = "peso_final", color = "Diet", palette = "jco") +
+              facet_wrap(~ Diet, scales = "free") +
+              rremove("x.ticks") + rremove("x.text") +
+              rremove("y.ticks") + rremove("y.text") +
+              rremove("axis.title")
+g
+
+# CANTIDAD DE POLLITOS TOTALES
+n_p <- length(unique(final_pesos$Chick))
+
+```
+
+Como se puede observar, los valores p obtenidos son mayores a 0.05 y los gráficos Q-Q se aproximan a la normal y se encuentran dentro del área.
+
+### c) EJECUCIÓN DE WILCOXON ADECUADA:
+
+```{r}
+dietas1 <- subset(ChickWeight, Diet == 1)$weight
+dietas2 <- subset(ChickWeight, Diet == 2)$weight
+
+# Realizar la prueba de Wilcoxon para dos muestras independientes
+wilcoxon <- wilcox.test(dietas1, dietas2, alternative = "two.sided" , conf.level = 1 - alfa)
+wilcoxon
+```
+
+### \* RESULTADO 8.2
+
+Como el p-valor = 0.02181 \< 0.05, rechazas la hipótesis nula al 5% de significancia.
+
+Esto indica que hay evidencia estadística de que los pesos de los pollitos alimentados con dieta 1 y dieta 2 difieren significativamente.
+
+Como es una prueba no paramétrica, estás comparando las distribuciones en general, y especialmente si las medianas difieren.
+
+##### CASO EXTREMO
+
+COMO SE CUMPLE NORMALIDAD, REALIZAR T-STUDENT PARA 2 MUESTRAS INDEPENDIENTES
+
+```{r}
+# Realizar la prueba t de Student para dos muestras independientes
+t_test <- t_test <- t.test(dietas1, dietas2, paired = FALSE, var.equal = TRUE)
+t_test
+```
+
+El p-valor es 0.005 \< 0.05, por lo tanto rechazas H₀ al 5% de significancia.
+
+Esto indica que hay una diferencia estadísticamente significativa en las medias de peso entre pollitos alimentados con dieta 1 y dieta 2.
+
+Dado que el intervalo de confianza no contiene el 0 y es totalmente negativo, sugiere que la media de la dieta 1 es significativamente menor que la de la dieta 2.
+
+```{r}
+
+```
+
+## 3) Pruebas no paramétricas con más de dos muestras numéricas
+
+El conjunto ChickWeight del paquete datasets contiene los resultados de un experimento del efecto de 4 tipos de dietas en el crecimiento temprano de pollitos. Verifica si las dietas producen crecimientos disímiles al sexto día de vida de los pollitos, cuando deben trasladarse a los galpones no calefaccionados. Enuncia las hipótesis y verifica si se cumplen las condiciones de las pruebas aplicadas. Utiliza la corrección de Benjamini y Hochberg para comparaciones múltiples de ser necesario
+
+### a) VARIABLES INFEPENDIENTES O DEPENDIENTES:
+
+Para esta pregunta necesario tener en cuenta que como solicita verificar si las dietas producen crecimientos disímiles al sexto día de vida de los pollitos, se trabajará con Pruebas no paramétricas con más de dos muestras numéricas.
+
+### b)
+
+```{r}
+# Cargar el conjunto de datos
+data(ChickWeight)
+
+# Filtrar pollitos del sexto día
+chick_d6 <- ChickWeight[ChickWeight$Time == 6, ]
+
+# Shapiro
+shapiro_test <- chick_d6 |>
+  group_by(Diet) |>
+  summarise(shapiro = shapiro.test(weight)$p.value)
+shapiro_test
+
+# GRAFICO Q-Q
+g <- ggqqplot(chick_d6, x = "weight", color = "Diet", palette = "jco") +
+              facet_wrap(~ Diet, scales = "free") +
+              rremove("x.ticks") + rremove("x.text") +
+              rremove("y.ticks") + rremove("y.text") +
+              rremove("axis.title")
+g
+```
+
+Como la normalidad no se cumple, se procede a realizar la prueba de Kruskal-Wallis.
+
+### c) EJECUCIÓN DE KRUSKAL-WALLIS ADECUADA:
+
+```{r}
+# Realizar la prueba de Kruskal-Wallis
+kruskal_test <- kruskal.test(weight ~ Diet, data = chick_d6)
+cat (" \nResultados de la prueba ómnibus\n " )
+cat (" --------------------------------" )
+print (kruskal_test)
+
+# Efectuar un procedimiento post - hoc de Benjamini y Hochberg
+if(kruskal_test$p.value < 0.05) {
+  post_hoc <- pairwise.wilcox.test(chick_d6$weight, chick_d6$Diet, p.adjust.method = "BH")
+  
+  cat ("\nResultados del an álisis post - hoc \n " )
+  cat (" --------------------------------" )
+  print (post_hoc)
+}
+```
+
+### \* RESULTADO 8.3
+
+El valor p = 3.209e-06 (\< 0.05) indica que hay diferencias significativas en el peso de los pollitos entre al menos una de las dietas al día 6.
+
+Esto rechaza la hipótesis nula de que todas las dietas producen el mismo crecimiento.
+
+-   La dieta 1 es significativamente distinta de todas las otras (2, 3 y 4).
+
+-   La dieta 2 no difiere significativamente de la 3, pero sí de la 4.
+
+-   La dieta 3 difiere de la 4.
+
+Esto sugiere que las dietas no tienen efectos equivalentes en el crecimiento de los pollitos al día 6, y algunas producen significativamente más o menos peso que otras.
