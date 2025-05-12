@@ -189,12 +189,14 @@ sigma_M <- sqrt (196)
 delta <- media_L - media_M
 sigma_agrupado <- sqrt (2 * ( sigma_L ** 2 + sigma_M ** 2) )
 delta_normalizado <- delta / sigma_agrupado
-
-# Tama ñ o total de la muestra
+#------------------------------------------------------------------------------------------------
+# FUNCIÓN DE PODER DE PRUEBA Z
+#------------------------------------------------------------------------------------------------
+# Tama ñ o total de la muestra (no lo ingresé)
 factores <- pwr.norm.test ( d = delta_normalizado , sig.level = alfa ,
                             power = poder , alternative = "less")
 print ( factores )
-
+#------------------------------------------------------------------------------------------------
 cat ("Número total de observaciones : " , ceiling ( factores [["n"]]) , "\n")
 ```
 

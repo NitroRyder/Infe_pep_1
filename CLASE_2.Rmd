@@ -1,0 +1,142 @@
+---
+title: "CLASE_2"
+author: "EJEMPLO"
+date: "2025-05-11"
+output: html_document
+---
+# LIBRERIA
+
+```{r setup, include=FALSE}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(ggpubr)
+library(DescTools)
+library(ez)
+library(emmeans)
+library(nlme)
+```
+
+## LECTURA DE ARCHIVOS
+
+```{r}
+# LECTURA DE DOCUMENTOS EN R
+
+# Importar desde un archivo de valores separados por coma
+# en formato inglés ( figura 1.2 b).
+datos1 <- read.csv ("EP06 Datos.csv")
+
+# Importar desde un archivo de valores separados por coma
+# en formato español ( figura 1.2 c).
+datos2 <- read.csv2 ("EP05 Datos.csv")
+
+```
+
+# VARIABLES ALEATORIAS DISCRETAS
+```{r}
+# Crear una variable discreta para representar el dado adulterado
+resultados <- 1:6
+probabilidades <- c (0.25 , 0.125 , 0.125 , 0.125 , 0.125 , 0.25)
+
+# Calcular el valor esperado
+esperado <- sum ( resultados * probabilidades )
+cat (" Valor esperado : " , esperado , " \n ")
+
+# Calcular la varianza
+varianza <- sum ((( resultados - esperado ) ^ 2) * probabilidades )
+cat (" Varianza : " , varianza , " \n ")
+
+# Calcular la desviaci ó n est á ndar
+desviacion <- sqrt ( varianza )
+cat (" Desviación estándar : " , desviacion , "\n ")
+```
+## histogramas de variables aleatorias discretas en R.
+```{r}
+SumaIID <- function ( pr , n = 2) { 
+probs <- pr
+i <- 2
+# Como un resultado depende del resultado anterior , se usa un ciclo tradicional
+while ( i <= n ) {
+# Producto de los vectores de probabilidades
+npr <- outer ( probs , pr , FUN ="*")
+# Obtiene a qu é salida pertenece cada probabilidad
+nout <- outer (as.numeric ( names ( probs ) ) , as.numeric ( names ( pr ) ) , FUN = "+")
+# Suma las probabilidades correspondientes a cada salida
+
+tmp <- tapply ( npr , nout , sum )
+
+probs <- tmp
+i <- i + 1
+}
+
+invisible ( probs )
+}
+
+# Crear una variable discreta para representar el dado adulterado
+resultados <- 1:6
+probabilidades = c (0.25 , 0.125 , 0.125 , 0.125 , 0.125 , 0.25)
+names ( probabilidades ) <- resultados
+
+# Crear vector con los resultados de 5 lanzamientos del dado
+lanzar_5 <- SumaIID ( probabilidades , n = 5)
+lanzar_5_df <- data.frame ( Salida = names ( lanzar_5) , Prob = lanzar_5 , N = "05")
+
+# Crear vector con los resultados de 10 lanzamientos del dado
+lanzar_10 <- SumaIID ( probabilidades , n = 10)
+lanzar_10_df <- data.frame ( Salida = names ( lanzar_10) , Prob = lanzar_10 , N = "10")
+
+# Crear vector con los resultados de 20 lanzamientos del dado
+lanzar_20 <- SumaIID ( probabilidades , n = 20)
+lanzar_20_df <- data.frame ( Salida = names ( lanzar_20) , Prob = lanzar_20 , N = "20")
+
+# Juntar las matrices de datos con los resultados
+lanzamientos <- rbind ( lanzar_5_df , lanzar_10_df , lanzar_20_df)
+lanzamientos [[ "Salida"]] <- as.integer ( lanzamientos [[ "Salida" ]])
+
+# Graficar las los resultados
+g <- ggbarplot ( lanzamientos , x = "Salida", y = "Prob",
+  fill = "N", palette = c(" steelblue " , " steelblue1 " , " slategray4 ") ,
+  title = "Lanzamientos de un dado cargado" ,
+  xlab = "Cantidad de lanzamientos independientes" ,
+  ylab = "Frecuencia")
+
+g <- g + scale_x_continuous ( breaks = get_breaks ( n = 6) )
+g <- ggpar (g , legend = "none", font.tickslab = c(9 , "plain", "black") )
+g <- facet (g , facet.by = "N", scales = "free",
+            panel.labs = list ( N = c("5 lanzamientos" ,"10 lanzamientos" ,"20 lanzamientos") ) )
+
+print (g)
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```

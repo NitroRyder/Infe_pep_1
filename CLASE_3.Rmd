@@ -3,6 +3,9 @@ title: "RESPUESTA_C2"
 author: "EJEMPLO"
 date: "2025-05-11"
 output: html_document
+editor_options: 
+  markdown: 
+    wrap: 72
 ---
 
 ```{r setup, include=FALSE}
@@ -20,6 +23,19 @@ library(nlme)
 # CAPÍTULO 5. INFERENCIA CON MEDIAS MUESTRALES
 
 ## PRUEBA Z
+
+Esta prueba resulta adecuada si queremos asegurar o descartar que la
+media de la población tiene un cierto valor hipotético. Esteban Quito es
+gerente de un grupo de inversiones que actualmente brinda apoyo
+financiero a más de 300 pequeñas empresas. El Sr. Quito desea saber para
+su campaña de marketing si, en promedio, las utilidades obtenidas el mes
+pasado por las empresas a las que brinda apoyo fueron de 20 millones de
+pesos. Para ello, nos ha informado que la desviación estándar para las
+utilidades de las empresas durante el mes pasado es de 2,32 millones de
+pesos y nos ha proporcionado una muestra, obtenida mediante muestreo
+aleatorio simple, con las utilidades (en millones de pesos) reportadas
+por 20 de las empresas durante dicho periodo, que se muestra en la tabla
+5.1. La media observada en esta muestra es x = 26,066.
 
 a)  observaciones independientes y aleatorias
 
@@ -60,7 +76,32 @@ normalidad <- shapiro.test(muestra)
 print (normalidad)
 ```
 
-COMO CUMPLE QUE p-value = 0.2443 Y QUE Q-Q CERCANO A LA DIAGONAL, PROCEDEMOS A REALIZAR PRUEBA-Z.
+El Sr. Quito nos ha dicho que debemos ser muy exigentes con respecto a
+nuestras conclusiones, por lo que se decide usar un nivel de
+significación α = 0,01 (es decir, un nivel de confianza de 99 %).
+Comencemos por formular nuestras hipótesis:
+
+-   H0: la media de las utilidades obtenidas por las empresas el mes
+    pasado (µ) es de 20 millones de pesos, es decir: µ = 20 [M\$].
+
+-   HA: las utilidades obtenidas el mes pasado por las empresas son, en
+    promedio, distintas de 20 millones de pesos, es decir: µ ̸= 20
+    [M\$].
+
+Ahora debemos verificar el cumplimiento de las condiciones para poder
+usar la prueba Z. En cuanto a la primera condición, podemos comprobar en
+el enunciado que las observaciones son independientes entre sí, pues
+fueron obtenidas mediante muestreo aleatorio simple y corresponden a
+menos del 10 % de la población. El enunciado nos indica que, si bien la
+muestra tiene solo 20 observaciones, la desviación estándar de la
+población es conocida, por lo que también se verifica el cumplimiento de
+la tercera condición. En cuanto a la distribución desde donde proviene
+la muestra, el gráfico Q-Q de la figura 5.1 (obtenido mediante el script
+5.1) nos permite verificar que los datos observados no se alejan
+demasiado del comportamiento esperado para una distribución normal.
+
+COMO CUMPLE QUE p-value = 0.2443 Y QUE Q-Q CERCANO A LA DIAGONAL,
+PROCEDEMOS A REALIZAR PRUEBA-Z.
 
 ```{r}
 cat("\n--------------------------------------------------------------\n")
@@ -90,15 +131,49 @@ stdev = desv_est , conf.level = 1 - alfa )
 print ( prueba2 )
 ```
 
-COMO p-valor \< alfa, RECHAZAMOS LA HIPÓTESIS NULA A FAVOR DE LA HIPOTESIS ALTERNATIVA.
+COMO p-valor \< alfa, RECHAZAMOS LA HIPÓTESIS NULA A FAVOR DE LA
+HIPOTESIS ALTERNATIVA.
 
 ## PRUEBA T-STUDENT
 
 ### 1) Prueba t para una muestra
 
+Tomemos el siguiente problema para ilustrar la prueba de hipótesis para
+la media de una muestra usando el modelo t: un ingeniero en Informática
+necesita determinar si el tiempo promedio que tarda una implementación
+dada de un algoritmo en resolver un problema, sabiendo que el algoritmo
+siempre se ejecuta en las mismas condiciones (misma máquina, igual
+disponibilidad de recursos de hardware y tamaño constante de las
+instancias), es inferior a 500 milisegundos. Para ello, ha seleccionado
+aleatoriamente 15 instancias del problema y registrado el tiempo de
+ejecución del algoritmo (en milisegundos) para cada una de ellas, como
+muestra la tabla 5.2.
+
+El primer paso es formular las hipótesis:
+
+-   H0: el tiempo promedio que tarda el algoritmo en resolver una
+    instancia del problema (µAVV) es igual a 500 milisegundos.
+    Matemáticamente: µAVV = 500
+
+-   HA: el tiempo promedio que tarda el algoritmo en resolver una
+    instancia del problema es inferior a 500 milisegundos. Es decir:
+    Matemáticamente: µAVV \< 500
+
 a)  Las observaciones son independientes entre sí.
 
+Como las instancias de prueba fueron elegidas al azar, y que (en
+general) el tiempo que tarda un algoritmo en una de ellas no influye en
+el tiempo que tarda en otra, se puede asumir que las observaciones son
+independientes.
+
 b)  Las observaciones provienen de una distribución cercana a la normal.
+
+El “tiempo de ejecución” es una medida física, por lo que tiene escala
+de razón, y el gráfico de la figura 5.3 muestra que es válido suponer
+que sigue una distribución cercana a la normal. Si bien los puntos de la
+muestra no forman una recta, tampoco se observan valores que se alejen
+demasiado del comportamiento esperado, permitiéndonos asumir que la
+variable estudiada sigue aproximadamente una distribución normal.
 
 c)  **(n \< 30)** o (n \>= 30)
 
@@ -211,16 +286,21 @@ prueba_2 <- t.test(x = t_A , y = t_B , paired = TRUE ,
 print (prueba_2)
 ```
 
-Los resultados para esta prueba son: \
-\* El valor para el estadístico de prueba T es t ≈ −1,9816. \
-\* Se consideran df = 34 grados de libertad para la distribución t. \
-\* El valor p obtenido es p = 0,056. \
-\* El intervalo de confianza obtenido es [−24,480; 0,309]. \
+Los resultados para esta prueba son:\
+\* El valor para el estadístico de prueba T es t ≈ −1,9816.\
+\* Se consideran df = 34 grados de libertad para la distribución t.\
+\* El valor p obtenido es p = 0,056.\
+\* El intervalo de confianza obtenido es [−24,480; 0,309].\
 \* La media de la muestra es x ≈ −12,086.
 
-En este caso, la media de las diferencias está dentro del intervalo de confianza, y además el valor p es mayor que el nivel de significación, por lo que se falla al rechazar la hipótesis nula. Pero el resultado está cerca del borde de significación. En consecuencia, se puede afirmar con 95 % de confianza que pareciera no haber suficiente evidencia para descartar que ambos algoritmos tardan, en promedio, lo mismo en procesar las instancias del problema, aunque sería necesario conseguir una muestra más grande para tener mayor certeza
-
-
+En este caso, la media de las diferencias está dentro del intervalo de
+confianza, y además el valor p es mayor que el nivel de significación,
+por lo que se falla al rechazar la hipótesis nula. Pero el resultado
+está cerca del borde de significación. En consecuencia, se puede afirmar
+con 95 % de confianza que pareciera no haber suficiente evidencia para
+descartar que ambos algoritmos tardan, en promedio, lo mismo en procesar
+las instancias del problema, aunque sería necesario conseguir una
+muestra más grande para tener mayor certeza
 
 ### 3)Prueba t para dos muestras independientes
 
@@ -280,13 +360,34 @@ diferencia <- prueba[["estimate"]][1] - prueba [["estimate"]][2]
 cat("Diferencia de las medias = " , diferencia , "[ mg/ml ]\n")
 ```
 
-
-
 # INFERENCIA CON PROPORCIONES MUESTRALES
+
+ESTO ES PARA VALORES BINARIOS (EXITO / FRACASO)
+
 
 ## MÉTODO DE WALD
 
 ### Método de Wald para una proporción
+
+Supongamos ahora, volviendo a nuestro ejemplo, que Baeza, entusiasmado por el intervalo de confianza
+obtenido anteriormente, le asegura a su jefe1 que más del 70 % de las instancias de tamaño 100.000 se
+ejecutan en menos de 25 segundos. Sin embargo, su jefe no está convencido por lo que decide comprobarlo
+mediante una prueba de hipótesis con un nivel de significación α = 0,05:
+
+- H0: el 70 % de las instancias se ejecutan en menos de 25 segundos.
+- HA: más del 70 % de las instancias se ejecutan en menos de 25 segundos.
+
+De acuerdo a estas hipótesis del jefe de Baeza, el valor nulo es p0 = 0,7, con lo que estas pueden formularse
+matemáticamente como:
+Denotando como p a la proporción de todas las instancias de tamaño 100.000 que se ejecutan en menos de
+25 segundos y considerando el valor hipotético p0 = 0,7 para este parámetro:
+
+- H0: p = p0
+- HA: p > p0
+Ya antes habíamos comprobado que se verifica la independencia de las observaciones. Además, considerando
+que el valor nulo fuese verdadero esperaríamos encontrar 0,7 · 150 = 105 éxitos y (1 − 0,7)· 150 = 45 fracasos,
+ambos valores mayores que 10, por lo que la condición de éxito-fracaso se verifica.
+
 ```{r}
 # Fijar valores conocidos
 n <- 150
@@ -313,6 +414,17 @@ cat ("p = ", p )
 ```
 
 ### Método de Wald para dos proporciones
+
+A modo de ejemplo, supongamos que la Facultad de Ingeniería de una prestigiosa universidad desea determinar si la tasa de reprobación de estudiantes que rinden la asignatura de programación por primera vez es igual
+para hombres y mujeres. Para ello, se examina la situación final de los estudiantes que rindieron la asignatura
+durante el segundo semestre de 2017. Para una muestra de 48 hombres (de un total de 632), se encontró que
+26 de ellos reprobaron la asignatura. De manera similar, para una muestra de 42 mujeres (de un total de
+507), se encontraron 20 reprobaciones2, con ambas muestras tomadas de manera aleatoria. Adicionalmente se verificó que el grupo completo de estudiantes seleccionados no se conocían entre ellos durante ese semestre.
+
+Desde luego, también podemos realizar pruebas de hipótesis en este escenario. Para el ejemplo tenemos que:
+- H0: no hay diferencia en la tasa de reprobación de hombres (p1) y mujeres (p2). Matemáticamente: p1−p1 = 0.
+- HA: las tasas de reprobación son diferentes para hombres y mujeres. Es decir: p1 − p1 ≠ 0.
+
 ```{r}
 # Fijar valores conocidos
 n_hombres <- 48
@@ -351,9 +463,11 @@ cat ("Hipótesis alternativa bilateral \n " )
 cat ("Z = ", Z , " \n ")
 cat ("p = ", p , " \n ")
 ```
+
 ## MÉTODO DE WILSON
 
 ### Método de Wilson para una proporción
+
 ```{r}
 # Fijar valores conocidos
 n <- 150
@@ -373,8 +487,8 @@ prueba <- prop.test( exitos , n = n , p = valor_nulo ,
 print ( prueba )
 ```
 
-
 ### Método de Wilson para la diferencia entre dos proporciones
+
 ```{r}
 # Fijar valores conocidos ( hombres , mujeres )
 n <-c(48 , 42)
